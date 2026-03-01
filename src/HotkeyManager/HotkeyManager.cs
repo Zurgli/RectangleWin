@@ -38,6 +38,9 @@ public sealed class HotkeyManager : IDisposable
     /// <summary>Raised when user chooses Quit from the tray menu. Marshal to UI thread to exit app.</summary>
     public event Action? TrayExitRequested;
 
+    /// <summary>Raised when user double-clicks the tray icon. Marshal to UI thread to show/restore main window.</summary>
+    public event Action? TrayShowWindowRequested;
+
     /// <summary>Optional diagnostic logging (e.g. "Hotkey window created", "WM_HOTKEY id=1").</summary>
     public void SetDiagnosticLog(Action<string>? log) => _log = log;
 
@@ -220,7 +223,10 @@ public sealed class HotkeyManager : IDisposable
                 HotkeyPressed?.Invoke(id);
                 return nint.Zero;
             case (uint)TrayCallbackMessage:
-                if (lParam.ToInt32() == User32Menu.WM_RBUTTONUP)
+                int lParamMsg = lParam.ToInt32();
+                if (lParamMsg == User32Menu.WM_LBUTTONUP || lParamMsg == User32Menu.WM_LBUTTONDBLCLK)
+                    TrayShowWindowRequested?.Invoke();
+                else if (lParamMsg == User32Menu.WM_RBUTTONUP)
                     ShowTrayMenu();
                 return nint.Zero;
             case HotkeyWin32.WM_CLOSE:

@@ -6,6 +6,8 @@ public static partial class User32Menu
 {
     private const string DllName = "user32.dll";
 
+    public const int WM_LBUTTONUP = 0x0202;
+    public const int WM_LBUTTONDBLCLK = 0x0203;
     public const int WM_RBUTTONUP = 0x0205;
     public const int TPM_RIGHTALIGN = 0x0008;
     public const int TPM_NONOTIFY = 0x0080;

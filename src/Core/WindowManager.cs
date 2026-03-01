@@ -60,6 +60,7 @@ public sealed class WindowManager
         {
             if (_history.GetRestoreRect(target) is not { } restore)
                 return false;
+            // Apply stored rect as-is; do not add gaps
             bool ok = WindowInterop.SetWindowBounds(target, restore, activate: false);
             if (ok) _history.RemoveLastAction(target);
             return ok;
@@ -124,6 +125,8 @@ public sealed class WindowManager
             applyGaps = false;
         if (applyGaps && action == WindowAction.Center)
             applyGaps = false; // Center only repositions; gaps would shrink the window on every press
+        if (applyGaps && action == WindowAction.Restore)
+            applyGaps = false; // Restore uses stored rect as-is; no gaps
         if (applyGaps)
             targetRect = GapCalculation.ApplyGaps(targetRect, Dimension.Both, Edge.None, options.GapSize);
 

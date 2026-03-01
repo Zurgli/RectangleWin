@@ -18,6 +18,9 @@ bld/
 *.userosscache
 *.sln.docstates
 
+# Cursor
+.cursor/
+
 # Rider
 .idea/
 *.sln.iml
