@@ -1,18 +1,21 @@
-namespace TrayApp.Views
+namespace TrayApp.Views;
+
+public partial class MainPage : Page
 {
-    /// <summary>
-    /// A simple page that can be used on its own or navigated to within a Frame.
-    /// </summary>
-    public partial class MainPage : Page
+    public MainPage()
     {
-        int count = 0;
+        InitializeComponent();
+        Loaded += OnLoaded;
+    }
 
-        public MainPage()
-        {
-            this.InitializeComponent();
-        }
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (App.Logic is { } logic)
+            logic.HotkeyTriggered += OnHotkeyTriggered;
+    }
 
-        private void OnCountClicked(object sender, RoutedEventArgs e)
-            => txtCount.Text = $"Current count: {count++}";
+    private void OnHotkeyTriggered(string actionName)
+    {
+        LastHotkeyText.Text = $"{actionName}  ({DateTime.Now:HH:mm:ss})";
     }
 }

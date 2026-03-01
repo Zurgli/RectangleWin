@@ -1,51 +1,85 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Navigation;
 
-namespace TrayApp
+namespace TrayApp;
+
+/// <summary>
+/// Provides application-specific behavior to supplement the default Application class.
+/// </summary>
+public partial class App : Application
 {
-    /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
-    /// </summary>
-    public partial class App : Application
+    private Window? _window = Window.Current;
+
+    public static AppLogic? Logic { get; private set; }
+
+    public App()
     {
-        private Window window = Window.Current;
-
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
-        public App()
+        InitializeComponent();
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
-            this.InitializeComponent();
-        }
+            if (args.ExceptionObject is Exception ex)
+            {
+                AppLog.Write("UnhandledException: " + ex.Message);
+                AppLog.Write(ex);
+            }
+        };
+    }
 
-        /// <summary>
-        /// Invoked when the application is launched normally by the end user.  Other entry points
-        /// will be used such as when the application is launched to open a specific file.
-        /// </summary>
-        /// <param name="e">Details about the launch request and process.</param>
-        protected override void OnLaunched(LaunchActivatedEventArgs e)
+    protected override void OnLaunched(LaunchActivatedEventArgs e)
+    {
+        try
         {
-            window ??= new Window();
+            AppLog.DebugEnabled = AppConfig.Load().DebugLogging;
+            AppLog.WriteDebug("OnLaunched start");
+            _window ??= new Window();
+            AppLog.WriteDebug("Window created");
 
-            if (window.Content is not Frame rootFrame)
+            if (_window.Content is not Frame rootFrame)
             {
                 rootFrame = new Frame();
                 rootFrame.NavigationFailed += OnNavigationFailed;
-                window.Content = rootFrame;
+                _window.Content = rootFrame;
             }
+            AppLog.WriteDebug("Frame ready");
 
             _ = rootFrame.Navigate(typeof(MainPage), e.Arguments);
-            window.Activate();
-        }
+            AppLog.WriteDebug("MainPage navigated");
 
-        /// <summary>
-        /// Invoked when Navigation to a certain page fails
-        /// </summary>
-        /// <param name="sender">The Frame which failed navigation</param>
-        /// <param name="e">Details about the navigation failure</param>
-        void OnNavigationFailed(object sender, NavigationFailedEventArgs e)
-        {
-            throw new Exception("Failed to load Page " + e.SourcePageType.FullName);
+            Logic = new AppLogic(_window.DispatcherQueue);
+            Logic.Start();
+            AppLog.WriteDebug("HotkeyManager started");
+
+            Logic.HotkeyManager.AddTrayIcon("RectangleWin");
+            AppLog.WriteDebug("Tray icon added");
+
+            Logic.HotkeyManager.TrayExitRequested += () =>
+            {
+                _window!.DispatcherQueue.TryEnqueue(() => Exit());
+            };
+
+            _window.Closed += (_, _) =>
+            {
+                Logic.Stop();
+            };
+
+            _window.Activate();
+            AppLog.WriteDebug("OnLaunched complete");
         }
+        catch (Exception ex)
+        {
+            AppLog.Write("OnLaunched failed");
+            AppLog.Write(ex);
+            _ = Interop.User32Menu.MessageBoxW(
+                nint.Zero,
+                ex.ToString(),
+                "RectangleWin Error",
+                Interop.User32Menu.MB_OK | Interop.User32Menu.MB_ICONERROR);
+            throw;
+        }
+    }
+
+    void OnNavigationFailed(object sender, NavigationFailedEventArgs e)
+    {
+        throw new Exception("Failed to load Page " + e.SourcePageType.FullName);
     }
 }

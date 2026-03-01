@@ -60,6 +60,7 @@
       <ProjectReference Include="..\HotkeyManager\HotkeyManager.csproj" />
       <ProjectReference Include="..\MonitorManager\MonitorManager.csproj" />
       <ProjectReference Include="..\WindowEngine\WindowEngine.csproj" />
+      <ProjectReference Include="..\Core\Core.csproj" />
     </ItemGroup>
 
     <!-- 
