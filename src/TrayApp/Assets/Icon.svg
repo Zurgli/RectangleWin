@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Regenerate Icon.ico: magick -background none Icon.svg -density 384 -resize 1024x1024 -define icon:auto-resize=512,256,128,64,48,32,16 Icon.ico
+     (-background none must come BEFORE the SVG so ImageMagick doesn't add a fill in transparent areas) -->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024"
+     xmlns="http://www.w3.org/2000/svg" version="1.1">
+  <title>Rectangle Windows Variant (Transparent, Rounded)</title>
+
+  <defs>
+    <!-- Clip to rounded rectangle so icon has rounded corners and transparent outside -->
+    <clipPath id="roundedClip">
+      <rect width="1024" height="1024" rx="262" ry="262" fill="white"/>
+    </clipPath>
+    <!-- Dark grey overlay gradient -->
+    <linearGradient id="overlayGradient" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#3A3A3A"/>
+      <stop offset="100%" stop-color="#1F1F1F"/>
+    </linearGradient>
+  </defs>
+
+  <g clip-path="url(#roundedClip)">
+    <!-- White rounded-square base (clipped so corners of canvas stay transparent) -->
+    <rect width="1024" height="1024" rx="262" fill="#FFFFFF"/>
+
+    <!-- Dark grey overlay -->
+    <path d="M577.735982,48 L737.276059,48 C789.934434,48 831.648416,57.9323404 866.52249,76.5831993 
+             C901.396564,95.2340582 928.765942,122.603436 947.416801,157.47751 
+             C966.06766,192.351584 976,234.065566 976,286.723941 
+             L976,737.276059 
+             C976,789.934434 966.06766,831.648416 947.416801,866.52249 
+             C928.765942,901.396564 901.396564,928.765942 866.52249,947.416801 
+             C831.648416,966.06766 789.934434,976 737.276059,976 
+             L577.735982,976 
+             C546.532826,976 535.217808,972.751104 523.8104,966.650355 
+             C512.402993,960.549607 503.450393,951.597007 497.349645,940.1896 
+             C491.248896,928.782192 488,917.467174 488,886.264018 
+             L488,137.735982 
+             C488,106.532826 491.248896,95.2178078 497.349645,83.8104004 
+             C503.450393,72.402993 512.402993,63.4503929 523.8104,57.3496446 
+             C535.217808,51.2488964 546.532826,48 577.735982,48 Z"
+          fill="url(#overlayGradient)"/>
+
+    <!-- Windows panes inset inside overlay -->
+    <g>
+      <rect x="540" y="90" width="90" height="90" rx="18" fill="#F25022"/>
+      <rect x="650" y="90" width="90" height="90" rx="18" fill="#7FBA00"/>
+      <rect x="540" y="200" width="90" height="90" rx="18" fill="#00A4EF"/>
+      <rect x="650" y="200" width="90" height="90" rx="18" fill="#FFB900"/>
+    </g>
+  </g>
+</svg>

@@ -13,6 +13,9 @@ public static partial class Shell32
     public const int NIF_TIP = 0x04;
 
     [DllImport(DllName, CharSet = CharSet.Unicode)]
+    public static extern int ExtractIconExW(string lpszFile, int nIconIndex, nint[]? phiconLarge, nint[]? phiconSmall, uint nIcons);
+
+    [DllImport(DllName, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool Shell_NotifyIconW(int dwMessage, ref NOTIFYICONDATAW lpData);
 

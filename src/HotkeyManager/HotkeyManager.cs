@@ -30,6 +30,7 @@ public sealed class HotkeyManager : IDisposable
     private nint _hookHandle;
     private bool _trayAdded;
     private int _trayIconId = 1;
+    private nint _trayIconHandle; // custom icon extracted from exe; must be destroyed on exit
     private Action<string>? _log;
 
     /// <summary>Raised when a registered hotkey is pressed (on the hotkey thread). Marshal to UI thread if needed.</summary>
@@ -85,8 +86,8 @@ public sealed class HotkeyManager : IDisposable
             s_keyToIdForHook.TryRemove((pair.mod & ~HotkeyWin32.MOD_NOREPEAT, pair.vk), out _);
     }
 
-    /// <summary>Add a tray icon with the given tooltip. Call after Start(). Right-click shows Quit.</summary>
-    public void AddTrayIcon(string tooltip = "RectangleWin")
+    /// <summary>Add a tray icon with the given tooltip. Call after Start(). If exePath is set, uses that exe's icon; otherwise system default.</summary>
+    public void AddTrayIcon(string tooltip = "RectangleWin", string? exePath = null)
     {
         if (_hwnd == nint.Zero) return;
         var nid = new Shell32.NOTIFYICONDATAW
@@ -98,7 +99,17 @@ public sealed class HotkeyManager : IDisposable
             uCallbackMessage = TrayCallbackMessage,
             szTip = tooltip.Length > 127 ? tooltip[..127] : tooltip
         };
-        nid.hIcon = User32Menu.LoadIcon(nint.Zero, (nint)User32Menu.IDI_APPLICATION);
+        if (!string.IsNullOrEmpty(exePath))
+        {
+            var small = new nint[1];
+            if (Shell32.ExtractIconExW(exePath, 0, null, small, 1) > 0 && small[0] != nint.Zero)
+            {
+                nid.hIcon = small[0];
+                _trayIconHandle = small[0];
+            }
+        }
+        if (nid.hIcon == nint.Zero)
+            nid.hIcon = User32Menu.LoadIcon(nint.Zero, (nint)User32Menu.IDI_APPLICATION);
         if (nid.hIcon != nint.Zero)
             nid.uFlags |= Shell32.NIF_ICON;
 
@@ -184,6 +195,11 @@ public sealed class HotkeyManager : IDisposable
                     uID = _trayIconId
                 };
                 Shell32.Shell_NotifyIconW(Shell32.NIM_DELETE, ref nid);
+            }
+            if (_trayIconHandle != nint.Zero)
+            {
+                User32Menu.DestroyIcon(_trayIconHandle);
+                _trayIconHandle = nint.Zero;
             }
             _registrations.Clear();
             foreach (var kv in s_keyToIdForHook.Keys.ToList())

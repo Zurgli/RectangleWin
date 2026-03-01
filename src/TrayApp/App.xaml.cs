@@ -63,7 +63,7 @@ public partial class App : Application
 
             StartupRegistration.SetLaunchAtStartup(Logic.Config.LaunchOnLogin);
 
-            Logic.HotkeyManager.AddTrayIcon("RectangleWin");
+            Logic.HotkeyManager.AddTrayIcon("RectangleWin", Environment.ProcessPath);
             AppLog.WriteDebug("Tray icon added");
 
             Logic.HotkeyManager.TrayShowWindowRequested += () =>

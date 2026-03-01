@@ -39,6 +39,10 @@ public static partial class User32Menu
     [DllImport(DllName)]
     public static extern nint LoadIcon(nint hInstance, nint lpIconName);
 
+    [DllImport(DllName)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DestroyIcon(nint hIcon);
+
     [DllImport(DllName, CharSet = CharSet.Unicode)]
     public static extern int MessageBoxW(nint hWnd, string lpText, string lpCaption, uint uType);
 
