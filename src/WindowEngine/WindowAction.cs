@@ -15,4 +15,11 @@ public enum WindowAction
     UpperRight,
     NextDisplay,
     PreviousDisplay,
+    // Horizontal thirds (left/center/right columns)
+    FirstThird,
+    FirstTwoThirds,
+    CenterThird,
+    LastTwoThirds,
+    LastThird,
+    CenterTwoThirds,
 }

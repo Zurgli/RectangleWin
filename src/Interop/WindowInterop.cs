@@ -12,11 +12,14 @@ public static class WindowInterop
         return User32.IsWindow(hwnd) ? hwnd : nint.Zero;
     }
 
-    /// <summary>Gets the window bounds in screen coordinates. Prefers DWM extended frame bounds for accuracy.</summary>
-    public static bool TryGetWindowBounds(nint hwnd, out RECT rect)
+    /// <summary>Gets the window bounds in screen coordinates. Prefers DWM extended frame bounds for accuracy.
+    /// Set useWindowRect to true for Center so read/set match (avoids shrinking loop; DWM bounds can differ from SetWindowPos).</summary>
+    public static bool TryGetWindowBounds(nint hwnd, out RECT rect, bool useWindowRect = false)
     {
         rect = default;
         if (hwnd == nint.Zero || !User32.IsWindow(hwnd)) return false;
+        if (useWindowRect)
+            return User32.GetWindowRect(hwnd, out rect);
         if (DwmApi.DwmGetWindowAttribute(hwnd, DwmApi.DWMWINDOWATTRIBUTE.DWMWA_EXTENDED_FRAME_BOUNDS, out rect, Marshal.SizeOf<RECT>()) == 0)
             return true;
         return User32.GetWindowRect(hwnd, out rect);

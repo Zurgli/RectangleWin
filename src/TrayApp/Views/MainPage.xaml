@@ -11,14 +11,15 @@
         <StackPanel Padding="24" Spacing="12">
             <TextBlock FontSize="18" Style="{StaticResource MyLabel}" Text="RectangleWin" />
             <TextBlock Text="Hotkeys active. Transformer: Win+Alt" TextWrapping="Wrap" />
-            <TextBlock Text="1 Left  2 Right  3 Top  4 Bottom  5 Maximize  6 Center" TextWrapping="Wrap" />
-            <TextBlock Text="Q UpperLeft  W UpperRight  A LowerLeft  S LowerRight" TextWrapping="Wrap" />
-            <TextBlock Text="N Next display  P Previous display  R Restore" TextWrapping="Wrap" />
+            <TextBlock Text="Arrow keys: Left/Right/Up/Down = halves" TextWrapping="Wrap" />
+            <TextBlock Text="U/I/J/K = corners  Enter = maximize  C = center  Del = restore" TextWrapping="Wrap" />
+            <TextBlock Text="Thirds: D left 1/3  E left 2/3  F center 1/3  T right 2/3  G right 1/3  R center 2/3" TextWrapping="Wrap" />
+            <TextBlock Text="N = next display  P = previous display" TextWrapping="Wrap" />
             <Border Margin="0,16,0,0" Padding="12" Background="#20FFFFFF" CornerRadius="4">
                 <StackPanel Spacing="4">
                     <TextBlock FontWeight="SemiBold" Text="Last key press" />
                     <TextBlock x:Name="LastHotkeyText" Text="(none yet)" />
-                    <TextBlock FontSize="12" Opacity="0.8" Text="Press Win+Alt + a key (e.g. 1, 2, Q) to test" />
+                    <TextBlock FontSize="12" Opacity="0.8" Text="Press Win+Alt + Arrow or letter (e.g. Left, U, Enter) to test" />
                 </StackPanel>
             </Border>
             <TextBlock Margin="0,12,0,0" Text="Close this window to exit." />

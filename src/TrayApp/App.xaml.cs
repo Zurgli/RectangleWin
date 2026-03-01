@@ -49,6 +49,8 @@ public partial class App : Application
             Logic.Start();
             AppLog.WriteDebug("HotkeyManager started");
 
+            StartupRegistration.SetLaunchAtStartup(Logic.Config.LaunchOnLogin);
+
             Logic.HotkeyManager.AddTrayIcon("RectangleWin");
             AppLog.WriteDebug("Tray icon added");
 

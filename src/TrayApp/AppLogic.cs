@@ -31,10 +31,26 @@ public sealed class AppLogic
         _options = new ExecuteOptions
         {
             GapSize = Config.GapSize,
-            UseCursorScreen = Config.UseCursorScreen,
-            MoveCursorAfterSnap = Config.MoveCursorAfterSnap,
+            UseCursorScreen = Config.UseCursorScreenDetection,
+            MoveCursorAfterSnap = Config.MoveCursor,
             MoveCursorAcrossDisplays = Config.MoveCursorAcrossDisplays,
-            DisabledProcessNames = null
+            DisabledProcessNames = Config.DisabledApps?.Count > 0 ? new HashSet<string>(Config.DisabledApps, StringComparer.OrdinalIgnoreCase) : null,
+            ScreenEdgeGapTop = Config.ScreenEdgeGapTop,
+            ScreenEdgeGapBottom = Config.ScreenEdgeGapBottom,
+            ScreenEdgeGapLeft = Config.ScreenEdgeGapLeft,
+            ScreenEdgeGapRight = Config.ScreenEdgeGapRight,
+            ScreenEdgeGapsOnMainScreenOnly = Config.ScreenEdgeGapsOnMainScreenOnly,
+            TaskbarGapCompensation = Config.TaskbarGapCompensation,
+            TaskbarGapCompensationLeft = Config.TaskbarGapCompensationLeft,
+            TaskbarGapCompensationRight = Config.TaskbarGapCompensationRight,
+            ApplyGapsToMaximize = Config.ApplyGapsToMaximize,
+            ApplyGapsToMaximizeHeight = Config.ApplyGapsToMaximizeHeight,
+            SubsequentExecutionMode = Config.SubsequentExecutionMode,
+            TraverseSingleScreen = Config.TraverseSingleScreen,
+            SpecifiedWidth = Config.SpecifiedWidth,
+            SpecifiedHeight = Config.SpecifiedHeight,
+            AlmostMaximizeWidth = Config.AlmostMaximizeWidth,
+            AlmostMaximizeHeight = Config.AlmostMaximizeHeight
         };
         _windowManager = new WindowManager();
 
