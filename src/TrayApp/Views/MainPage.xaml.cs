@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace TrayApp.Views;
 
@@ -21,6 +22,19 @@ public sealed partial class MainPage : Page
         {
             window.SetTitleBar(TitleBarPanel);
         }
+
+        // Set title bar icon from app directory (reliable for unpackaged)
+        try
+        {
+            var baseDir = AppContext.BaseDirectory;
+            var iconPath = Path.Combine(baseDir, "Assets", "StoreLogo.png");
+            if (File.Exists(iconPath))
+            {
+                var fullPath = Path.GetFullPath(iconPath);
+                TitleBarIcon.Source = new BitmapImage(new Uri("file:///" + fullPath.Replace('\\', '/')));
+            }
+        }
+        catch { /* ignore */ }
 
         if (App.Logic is not { } logic) return;
 
@@ -199,12 +213,12 @@ public sealed partial class MainPage : Page
 
     private static Grid BuildTileGrid(string action, int innerSize, Brush windowFill)
     {
-        var margin = 1;
+        // Margin 0,0,2,2 shifts inner rect 1px up and 1px left for even gap from outline
         var window = new Border
         {
             Background = windowFill,
             CornerRadius = new CornerRadius(0),
-            Margin = new Thickness(margin)
+            Margin = new Thickness(1, 1, 1.5, 1.5)
         };
 
         var grid = new Grid();

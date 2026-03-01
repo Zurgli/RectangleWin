@@ -21,8 +21,10 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="RectangleWin" FontSize="14" FontWeight="SemiBold"
-                      VerticalAlignment="Center" Margin="24,0,0,0" />
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="24,0,0,0" Spacing="10">
+                <Image x:Name="TitleBarIcon" Source="ms-appx:///Assets/StoreLogo.png" Width="24" Height="24" />
+                <TextBlock Text="RectangleWin" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
             <Button x:Name="MinimizeButton" Grid.Column="1" Width="46" Height="40" MinWidth="46"
                     Background="Transparent" BorderThickness="0" CornerRadius="0"
                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
