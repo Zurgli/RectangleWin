@@ -116,9 +116,9 @@ public sealed class AppConfig
             ScreenEdgeGapBottom = 0,
             ScreenEdgeGapLeft = 0,
             ScreenEdgeGapRight = 0,
-            TaskbarGapCompensation = 10,
-            TaskbarGapCompensationLeft = 8,
-            TaskbarGapCompensationRight = 8,
+            TaskbarGapCompensation = 0,
+            TaskbarGapCompensationLeft = 0,
+            TaskbarGapCompensationRight = 0,
             ApplyGapsToMaximize = true,
             ApplyGapsToMaximizeHeight = true,
             SpecifiedWidth = 1680f,
@@ -138,7 +138,7 @@ public sealed class AppConfig
                 new("LowerRight", winAlt, 0x4B),   // K
                 new("Maximize", winAlt, 0x0D),     // Enter
                 new("Center", winAlt, 0x43),       // C
-                new("Restore", winAlt, 0x2E),      // Delete
+                new("Undo", winAlt, 0x2E),      // Delete
                 new("FirstThird", winAlt, 0x44),   // D - left 1/3
                 new("FirstTwoThirds", winAlt, 0x45), // E - left 2/3
                 new("CenterThird", winAlt, 0x46), // F - center 1/3

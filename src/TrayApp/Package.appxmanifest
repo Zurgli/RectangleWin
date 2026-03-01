@@ -15,7 +15,7 @@
   <mp:PhoneIdentity PhoneProductId="504d1644-e34d-4e9e-b6a0-62a3c1f8fb27" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>TrayApp</DisplayName>
+    <DisplayName>RectangleWin</DisplayName>
     <PublisherDisplayName>User Name</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -34,8 +34,8 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="TrayApp"
-        Description="TrayApp"
+        DisplayName="RectangleWin"
+        Description="RectangleWin"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">

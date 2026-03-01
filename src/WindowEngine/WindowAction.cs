@@ -8,7 +8,7 @@ public enum WindowAction
     BottomHalf,
     Maximize,
     Center,
-    Restore,
+    Undo,
     LowerLeft,
     LowerRight,
     UpperLeft,

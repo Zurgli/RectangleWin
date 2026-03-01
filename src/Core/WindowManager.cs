@@ -56,7 +56,7 @@ public sealed class WindowManager
                 return false;
         }
 
-        if (action == WindowAction.Restore)
+        if (action == WindowAction.Undo)
         {
             if (_history.GetRestoreRect(target) is not { } restore)
                 return false;
@@ -75,7 +75,6 @@ public sealed class WindowManager
             if (targetWorkArea is not { } dest)
                 return false;
             dest = InsetWorkAreaByScreenEdgeGaps(dest, options);
-            dest = ExtendWorkAreaBottomForTaskbarGap(dest, options);
             if (options.UpdateRestoreRect)
                 _history.SetRestoreRect(target, currentRect);
             var engineRect = dest.ToEngine();
@@ -95,7 +94,7 @@ public sealed class WindowManager
         IWindowCalculation? calculation = WindowCalculationFactory.GetCalculation(action);
         if (calculation == null) return false;
 
-        bool useWindowRectForBounds = (action == WindowAction.Center);
+        bool useWindowRectForBounds = false;
         if (!WindowInterop.TryGetWindowBounds(target, out RECT windowRect, useWindowRectForBounds))
             return false;
 
@@ -104,7 +103,6 @@ public sealed class WindowManager
         if (work.Left == 0 && work.Top == 0 && work.Right == 0 && work.Bottom == 0)
             return false;
         work = InsetWorkAreaByScreenEdgeGaps(work, options);
-        work = ExtendWorkAreaBottomForTaskbarGap(work, options);
 
         LastActionInfo? lastInfo = _history.GetLastAction(target) is { } la
             ? new LastActionInfo(la.Rect.ToEngine(), la.Action)
@@ -125,15 +123,15 @@ public sealed class WindowManager
             applyGaps = false;
         if (applyGaps && action == WindowAction.Center)
             applyGaps = false; // Center only repositions; gaps would shrink the window on every press
-        if (applyGaps && action == WindowAction.Restore)
-            applyGaps = false; // Restore uses stored rect as-is; no gaps
+        if (applyGaps && action == WindowAction.Undo)
+            applyGaps = false; // Undo uses stored rect as-is; no gaps
         if (applyGaps)
             targetRect = GapCalculation.ApplyGaps(targetRect, Dimension.Both, Edge.None, options.GapSize);
 
         if (options.UpdateRestoreRect)
             _history.SetRestoreRect(target, windowRect);
 
-        bool applied = WindowInterop.SetWindowBounds(target, targetRect.ToInterop(), activate: false);
+        bool applied = WindowInterop.SetWindowBounds(target, targetRect.ToInterop(), activate: false, rectIsVisibleBounds: true);
         if (applied)
         {
             _history.SetLastAction(target, new RectangleAction(r.ResultingAction, targetRect.ToInterop()));
@@ -159,19 +157,4 @@ public sealed class WindowManager
         };
     }
 
-    /// <summary>Extend work area to fix Windows 11 gaps (rcWork leaves margin at bottom/left/right).</summary>
-    private static RECT ExtendWorkAreaBottomForTaskbarGap(RECT work, ExecuteOptions options)
-    {
-        int bottom = options.TaskbarGapCompensation;
-        int left = options.TaskbarGapCompensationLeft;
-        int right = options.TaskbarGapCompensationRight;
-        if (bottom <= 0 && left <= 0 && right <= 0) return work;
-        return new RECT
-        {
-            Left = work.Left - left,
-            Top = work.Top,
-            Right = work.Right + right,
-            Bottom = work.Bottom + bottom
-        };
-    }
 }

@@ -2,9 +2,10 @@
 ; Build: Publish TrayApp for win-x64 (Release), then run iscc RectangleWin.iss from this folder.
 
 #define MyAppName "RectangleWin"
-#define MyAppExeName "TrayApp.exe"
+#define MyAppExeName "RectangleWin.exe"
 #define MyAppVersion "0.1"
 #define PublishDir "..\src\TrayApp\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish"
+; Note: TrayApp project outputs RectangleWin.exe via AssemblyName.
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
@@ -18,12 +19,12 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=.
 OutputBaseFilename=RectangleWin-Setup-{#MyAppVersion}
-Compression=lz2
+Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 
 [Tasks]
 Name: "launchatstartup"; Description: "Launch RectangleWin when Windows starts"; GroupDescription: "Startup:"; Flags: unchecked

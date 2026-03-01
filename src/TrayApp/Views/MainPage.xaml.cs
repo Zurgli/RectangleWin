@@ -159,7 +159,7 @@ public sealed partial class MainPage : Page
             ("Halves", new[] { "LeftHalf", "RightHalf", "TopHalf", "BottomHalf" }),
             ("Quarters", new[] { "UpperLeft", "UpperRight", "LowerLeft", "LowerRight" }),
             ("Thirds", new[] { "FirstThird", "FirstTwoThirds", "CenterThird", "LastTwoThirds", "LastThird", "CenterTwoThirds" }),
-            ("Other", new[] { "Maximize", "Center", "Restore", "NextDisplay", "PreviousDisplay" }),
+            ("Other", new[] { "Maximize", "Center", "Undo", "NextDisplay", "PreviousDisplay" }),
         };
 
         var halves = new List<(string Action, string Shortcut)>();
@@ -174,6 +174,8 @@ public sealed partial class MainPage : Page
             {
                 if (actionToShortcut.TryGetValue(action, out var pair))
                     list.Add(pair);
+                else if (action == "Undo" && actionToShortcut.TryGetValue("Restore", out pair))
+                    list.Add(("Undo", pair.Shortcut));
             }
         }
 
@@ -258,7 +260,7 @@ public sealed partial class MainPage : Page
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             Grid.SetColumnSpan(window, 1);
         }
-        else if (action == "Center" || action == "Restore")
+        else if (action == "Center" || action == "Undo")
         {
             for (int i = 0; i < 3; i++) { grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); }
             Grid.SetRow(window, 1);

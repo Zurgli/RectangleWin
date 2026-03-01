@@ -21,9 +21,10 @@ public enum Edge
 
 public static class GapCalculation
 {
-    /// <summary>Insets rect by gap; optionally gives back half on shared edges.</summary>
+    /// <summary>Insets rect by gap; optionally gives back half on shared edges. Returns rect unchanged when gapSize is 0.</summary>
     public static Rect ApplyGaps(Rect rect, Dimension dimension, Edge sharedEdges, float gapSize)
     {
+        if (gapSize <= 0f) return rect;
         int g = (int)gapSize;
         int half = (int)(gapSize / 2);
         int dx = dimension.HasFlag(Dimension.Horizontal) ? g : 0;

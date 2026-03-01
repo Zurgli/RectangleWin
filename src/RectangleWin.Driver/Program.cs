@@ -15,7 +15,7 @@ const string modifierHint = "Alt";
 Console.WriteLine("RectangleWin.Driver - hold {0} and press key to move foreground window:", modifierHint);
 Console.WriteLine("  1=LeftHalf  2=RightHalf  3=TopHalf  4=BottomHalf");
 Console.WriteLine("  5=Maximize  6=Center  Q=UpperLeft  W=UpperRight  A=LowerLeft  S=LowerRight");
-Console.WriteLine("  N=NextDisplay  P=PreviousDisplay  R=Restore");
+Console.WriteLine("  N=NextDisplay  P=PreviousDisplay  R=Undo");
 Console.WriteLine("  (Esc = exit, no modifier)");
 Console.WriteLine();
 
@@ -43,7 +43,7 @@ while (true)
         ConsoleKey.S => WindowAction.LowerRight,
         ConsoleKey.N => WindowAction.NextDisplay,
         ConsoleKey.P => WindowAction.PreviousDisplay,
-        ConsoleKey.R => WindowAction.Restore,
+        ConsoleKey.R => WindowAction.Undo,
         _ => null
     };
 

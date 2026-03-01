@@ -44,6 +44,6 @@ public static class WindowCalculationFactory
     public static IWindowCalculation? GetCalculation(WindowAction action) =>
         Map.TryGetValue(action, out var calc) ? calc : null;
 
-    /// <summary>Whether this action uses a layout calculation (vs Restore or Next/Prev which are handled by manager).</summary>
-    public static bool HasCalculation(WindowAction action) => action != WindowAction.Restore && action != WindowAction.NextDisplay && action != WindowAction.PreviousDisplay;
+    /// <summary>Whether this action uses a layout calculation (vs Undo or Next/Prev which are handled by manager).</summary>
+    public static bool HasCalculation(WindowAction action) => action != WindowAction.Undo && action != WindowAction.NextDisplay && action != WindowAction.PreviousDisplay;
 }

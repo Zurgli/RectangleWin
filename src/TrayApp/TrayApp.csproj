@@ -7,9 +7,11 @@
         <FileVersion>0.1.0.0</FileVersion>
         <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
         <OutputType>WinExe</OutputType>
+        <AssemblyName>RectangleWin</AssemblyName>
 
         <!-- WinUI 3 -->
         <UseWinUI>true</UseWinUI>
+        <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
         <EnableMsixTooling>true</EnableMsixTooling>
         <WindowsPackageType>None</WindowsPackageType>
 

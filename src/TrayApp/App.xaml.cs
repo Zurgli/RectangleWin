@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Navigation;
 
 namespace TrayApp;
@@ -9,6 +11,51 @@ namespace TrayApp;
 /// </summary>
 public partial class App : Application
 {
+    /// <summary>Custom entry point to catch bootstrap exceptions (DISABLE_XAML_GENERATED_MAIN).</summary>
+    [STAThread]
+    public static int Main(string[] args)
+    {
+        string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RectangleWin");
+        string startupLog = Path.Combine(logDir, "startup-log.txt");
+        void WriteStartup(string msg)
+        {
+            try
+            {
+                Directory.CreateDirectory(logDir);
+                File.AppendAllText(startupLog, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {msg}{Environment.NewLine}");
+            }
+            catch { /* ignore */ }
+        }
+
+        try
+        {
+            WriteStartup("Main() entered");
+            WinRT.ComWrappersSupport.InitializeComWrappers();
+            WriteStartup("ComWrappers initialized");
+            Application.Start(_ =>
+            {
+                WriteStartup("Application.Start callback");
+                var ctx = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+                SynchronizationContext.SetSynchronizationContext(ctx);
+                new App();
+                WriteStartup("App created");
+            });
+            WriteStartup("Application.Start returned");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            string full = ex.ToString();
+            WriteStartup("EXCEPTION: " + full);
+            try
+            {
+                _ = Interop.User32Menu.MessageBoxW(nint.Zero, full, "RectangleWin startup failed", Interop.User32Menu.MB_OK | Interop.User32Menu.MB_ICONERROR);
+            }
+            catch { }
+            return ex.HResult;
+        }
+    }
+
     private Window? _window = Window.Current;
 
     public static Window? MainWindow => (Current as App)?._window;
@@ -16,23 +63,31 @@ public partial class App : Application
 
     public App()
     {
+        AppLog.Write("App constructor start");
         InitializeComponent();
+        AppLog.Write("App constructor after Init");
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
             if (args.ExceptionObject is Exception ex)
             {
                 AppLog.Write("UnhandledException: " + ex.Message);
                 AppLog.Write(ex);
+                try
+                {
+                    _ = Interop.User32Menu.MessageBoxW(nint.Zero, ex.ToString(), "RectangleWin Error", Interop.User32Menu.MB_OK | Interop.User32Menu.MB_ICONERROR);
+                }
+                catch { /* ignore */ }
             }
         };
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs e)
     {
+        AppLog.Write("OnLaunched start");
         try
         {
             AppLog.DebugEnabled = AppConfig.Load().DebugLogging;
-            AppLog.WriteDebug("OnLaunched start");
+            AppLog.Write("OnLaunched config loaded");
             _window ??= new Window();
             AppLog.WriteDebug("Window created");
 
@@ -61,10 +116,17 @@ public partial class App : Application
             Logic.Start();
             AppLog.WriteDebug("HotkeyManager started");
 
-            StartupRegistration.SetLaunchAtStartup(Logic.Config.LaunchOnLogin);
-
-            Logic.HotkeyManager.AddTrayIcon("RectangleWin", Environment.ProcessPath);
-            AppLog.WriteDebug("Tray icon added");
+            try
+            {
+                StartupRegistration.SetLaunchAtStartup(Logic.Config.LaunchOnLogin);
+                Logic.HotkeyManager.AddTrayIcon("RectangleWin", Environment.ProcessPath);
+                AppLog.WriteDebug("Tray icon added");
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write("Tray/startup setup failed: " + ex.Message);
+                AppLog.Write(ex);
+            }
 
             Logic.HotkeyManager.TrayShowWindowRequested += () =>
             {

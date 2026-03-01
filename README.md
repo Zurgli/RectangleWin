@@ -19,7 +19,7 @@ RectangleWin is a minimal tray app: global hotkeys (Win+Alt by default), optiona
 
 ```bash
 dotnet build src\TrayApp\TrayApp.csproj -c Release
-# Run: src\TrayApp\bin\Release\net8.0-windows10.0.19041.0\x64\TrayApp.exe
+# Run: src\TrayApp\bin\Release\net8.0-windows10.0.19041.0\x64\RectangleWin.exe
 # Or publish for a single folder:
 dotnet publish src\TrayApp\TrayApp.csproj -c Release -r win-x64 --self-contained true
 ```

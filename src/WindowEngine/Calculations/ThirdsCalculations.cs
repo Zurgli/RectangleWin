@@ -13,15 +13,14 @@ public sealed class FirstThirdCalculation : BaseCalculation
     }
 }
 
-/// <summary>Left 2/3 of work area (full height).</summary>
+/// <summary>Left 2/3 of work area (full height). Uses same split as CenterThird/LastThird so no gap.</summary>
 public sealed class FirstTwoThirdsCalculation : BaseCalculation
 {
     public override CalculationResult? Calculate(RectCalculationParameters parameters)
     {
         var w = parameters.WorkArea;
-        int width = w.Width;
-        int twoThirds = (2 * width) / 3;
-        var rect = new Rect(w.Left, w.Top, w.Left + twoThirds, w.Bottom);
+        int third = w.Width / 3;
+        var rect = new Rect(w.Left, w.Top, w.Left + 2 * third, w.Bottom);
         return new CalculationResult(rect, parameters.Action);
     }
 }
@@ -39,28 +38,26 @@ public sealed class CenterThirdCalculation : BaseCalculation
     }
 }
 
-/// <summary>Right 2/3 of work area (full height).</summary>
+/// <summary>Right 2/3 of work area (full height). Uses same split as FirstThird so no gap.</summary>
 public sealed class LastTwoThirdsCalculation : BaseCalculation
 {
     public override CalculationResult? Calculate(RectCalculationParameters parameters)
     {
         var w = parameters.WorkArea;
-        int width = w.Width;
-        int twoThirds = (2 * width) / 3;
-        var rect = new Rect(w.Left + (width - twoThirds), w.Top, w.Right, w.Bottom);
+        int third = w.Width / 3;
+        var rect = new Rect(w.Left + third, w.Top, w.Right, w.Bottom);
         return new CalculationResult(rect, parameters.Action);
     }
 }
 
-/// <summary>Right 1/3 of work area (full height).</summary>
+/// <summary>Right 1/3 of work area (full height). Uses same split as CenterThird so no gap.</summary>
 public sealed class LastThirdCalculation : BaseCalculation
 {
     public override CalculationResult? Calculate(RectCalculationParameters parameters)
     {
         var w = parameters.WorkArea;
-        int width = w.Width;
-        int third = width / 3;
-        var rect = new Rect(w.Left + (width - third), w.Top, w.Right, w.Bottom);
+        int third = w.Width / 3;
+        var rect = new Rect(w.Left + 2 * third, w.Top, w.Right, w.Bottom);
         return new CalculationResult(rect, parameters.Action);
     }
 }
