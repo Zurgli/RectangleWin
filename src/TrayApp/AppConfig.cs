@@ -37,6 +37,7 @@ public sealed class AppConfig
     public bool ScreensOrderedByX { get; set; } = true;
 
     // --- Gaps ---
+    /// <summary>Gap between windows (positive). Negative = overdraw to compensate for semi-transparent window edges.</summary>
     [JsonPropertyName("gapSize")]
     public float GapSize { get; set; }
     [JsonPropertyName("screenEdgeGapTop")]
@@ -111,7 +112,7 @@ public sealed class AppConfig
         return new AppConfig
         {
             LaunchOnLogin = true,
-            GapSize = 0,
+            GapSize = -2f,
             ScreenEdgeGapTop = 0,
             ScreenEdgeGapBottom = 0,
             ScreenEdgeGapLeft = 0,
@@ -158,29 +159,92 @@ public sealed class AppConfig
         return Path.Combine(dir, "config.json");
     }
 
+    /// <summary>Only these properties are read from / written to config.json. Everything else uses defaults.</summary>
+    private sealed class PersistedConfig
+    {
+        [JsonPropertyName("launchOnLogin")]
+        public bool LaunchOnLogin { get; set; }
+        [JsonPropertyName("gapSize")]
+        public float GapSize { get; set; }
+        [JsonPropertyName("screenEdgeGapTop")]
+        public float ScreenEdgeGapTop { get; set; }
+        [JsonPropertyName("screenEdgeGapBottom")]
+        public float ScreenEdgeGapBottom { get; set; }
+        [JsonPropertyName("screenEdgeGapLeft")]
+        public float ScreenEdgeGapLeft { get; set; }
+        [JsonPropertyName("screenEdgeGapRight")]
+        public float ScreenEdgeGapRight { get; set; }
+        [JsonPropertyName("screenEdgeGapsOnMainScreenOnly")]
+        public bool ScreenEdgeGapsOnMainScreenOnly { get; set; }
+        [JsonPropertyName("taskbarGapCompensation")]
+        public int TaskbarGapCompensation { get; set; }
+        [JsonPropertyName("taskbarGapCompensationLeft")]
+        public int TaskbarGapCompensationLeft { get; set; }
+        [JsonPropertyName("taskbarGapCompensationRight")]
+        public int TaskbarGapCompensationRight { get; set; }
+        [JsonPropertyName("applyGapsToMaximize")]
+        public bool ApplyGapsToMaximize { get; set; } = true;
+        [JsonPropertyName("applyGapsToMaximizeHeight")]
+        public bool ApplyGapsToMaximizeHeight { get; set; } = true;
+        [JsonPropertyName("hotkeys")]
+        public List<HotkeyBinding> Hotkeys { get; set; } = new();
+    }
+
     public static AppConfig Load()
     {
         string path = ConfigPath();
+        var result = Default();
         if (!File.Exists(path))
-            return Default();
+            return result;
         try
         {
             string json = File.ReadAllText(path);
             var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var c = JsonSerializer.Deserialize<AppConfig>(json, opts);
-            return c ?? Default();
+            var p = JsonSerializer.Deserialize<PersistedConfig>(json, opts);
+            if (p == null) return result;
+            result.LaunchOnLogin = p.LaunchOnLogin;
+            result.GapSize = p.GapSize;
+            result.ScreenEdgeGapTop = p.ScreenEdgeGapTop;
+            result.ScreenEdgeGapBottom = p.ScreenEdgeGapBottom;
+            result.ScreenEdgeGapLeft = p.ScreenEdgeGapLeft;
+            result.ScreenEdgeGapRight = p.ScreenEdgeGapRight;
+            result.ScreenEdgeGapsOnMainScreenOnly = p.ScreenEdgeGapsOnMainScreenOnly;
+            result.TaskbarGapCompensation = p.TaskbarGapCompensation;
+            result.TaskbarGapCompensationLeft = p.TaskbarGapCompensationLeft;
+            result.TaskbarGapCompensationRight = p.TaskbarGapCompensationRight;
+            result.ApplyGapsToMaximize = p.ApplyGapsToMaximize;
+            result.ApplyGapsToMaximizeHeight = p.ApplyGapsToMaximizeHeight;
+            if (p.Hotkeys?.Count > 0)
+                result.Hotkeys = p.Hotkeys;
+            return result;
         }
         catch
         {
-            return Default();
+            return result;
         }
     }
 
     public void Save()
     {
         string path = ConfigPath();
+        var p = new PersistedConfig
+        {
+            LaunchOnLogin = LaunchOnLogin,
+            GapSize = GapSize,
+            ScreenEdgeGapTop = ScreenEdgeGapTop,
+            ScreenEdgeGapBottom = ScreenEdgeGapBottom,
+            ScreenEdgeGapLeft = ScreenEdgeGapLeft,
+            ScreenEdgeGapRight = ScreenEdgeGapRight,
+            ScreenEdgeGapsOnMainScreenOnly = ScreenEdgeGapsOnMainScreenOnly,
+            TaskbarGapCompensation = TaskbarGapCompensation,
+            TaskbarGapCompensationLeft = TaskbarGapCompensationLeft,
+            TaskbarGapCompensationRight = TaskbarGapCompensationRight,
+            ApplyGapsToMaximize = ApplyGapsToMaximize,
+            ApplyGapsToMaximizeHeight = ApplyGapsToMaximizeHeight,
+            Hotkeys = Hotkeys
+        };
         var opts = new JsonSerializerOptions { WriteIndented = true };
-        File.WriteAllText(path, JsonSerializer.Serialize(this, opts));
+        File.WriteAllText(path, JsonSerializer.Serialize(p, opts));
     }
 }
 

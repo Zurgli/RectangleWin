@@ -78,7 +78,7 @@ public sealed class WindowManager
             if (options.UpdateRestoreRect)
                 _history.SetRestoreRect(target, currentRect);
             var engineRect = dest.ToEngine();
-            if (options.GapSize > 0)
+            if (options.GapSize != 0)
                 engineRect = GapCalculation.ApplyGaps(engineRect, Dimension.Both, Edge.None, options.GapSize);
             bool ok = WindowInterop.SetWindowBounds(target, engineRect.ToInterop(), activate: false);
             if (ok)
@@ -118,7 +118,7 @@ public sealed class WindowManager
         if (result is not { } r) return false;
 
         Rect targetRect = r.Rect;
-        bool applyGaps = options.GapSize > 0;
+        bool applyGaps = options.GapSize != 0;
         if (applyGaps && action == WindowAction.Maximize && !options.ApplyGapsToMaximize)
             applyGaps = false;
         if (applyGaps && action == WindowAction.Center)

@@ -52,7 +52,7 @@
                 BorderThickness="1" CornerRadius="8" Padding="16">
                 <StackPanel Spacing="10">
                     <TextBlock FontSize="16" FontWeight="SemiBold" Text="Settings" />
-                    <Grid ColumnSpacing="16" RowSpacing="10">
+                    <Grid ColumnSpacing="16" RowSpacing="10" HorizontalAlignment="Stretch">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -61,12 +61,34 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Grid.Column="0" FontSize="13" Text="Launch at startup" VerticalAlignment="Center" HorizontalAlignment="Left" TextWrapping="NoWrap" />
-                        <ToggleSwitch Grid.Row="0" Grid.Column="1" x:Name="LaunchOnLoginCheckBox" OffContent="" OnContent="" Toggled="OnLaunchOnLoginToggled" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Row="1" Grid.Column="0" FontSize="13" Text="Gaps between windows:" VerticalAlignment="Center" HorizontalAlignment="Left" TextWrapping="NoWrap" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" FontSize="13" Text="Launch at startups" VerticalAlignment="Center" HorizontalAlignment="Left" TextWrapping="NoWrap" />
+                        <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right">
+                            <ToggleSwitch x:Name="LaunchOnLoginCheckBox" MinWidth="30" OffContent="" OnContent="" Toggled="OnLaunchOnLoginToggled"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Left">
+                            <TextBlock FontSize="13" Text="Gaps between windows" VerticalAlignment="Center" TextWrapping="NoWrap" />
+                            <Button Width="20" Height="20" MinWidth="20" MinHeight="20" Padding="0" Background="Transparent" BorderThickness="0" CornerRadius="10" IsTabStop="False"
+                                ToolTipService.ToolTip="Negative = overdraw to hide semi-transparent window edges."
+                                ToolTipService.Placement="Top">
+                                <TextBlock FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="?" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                            </Button>
+                        </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Right">
-                            <Slider x:Name="GapSlider" Width="120" Minimum="0" Maximum="24" StepFrequency="1"
-                                ValueChanged="OnGapValueChanged" />
+                            <!-- Slider track is inset by thumb padding; 0 is at ~35/120 (inset + 8/32 of track) -->
+                            <Grid Width="120" VerticalAlignment="Center">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="35*" />
+                                    <ColumnDefinition Width="85*" />
+                                </Grid.ColumnDefinitions>
+                                <!-- Tick at 0 px -->
+                                <Border Grid.Column="0" Width="2" HorizontalAlignment="Right" VerticalAlignment="Stretch" IsHitTestVisible="False"
+                                    Background="{ThemeResource TextFillColorSecondaryBrush}" Opacity="0.8" Margin="0,4" MinHeight="20" />
+                                <Slider x:Name="GapSlider" Grid.ColumnSpan="2" Width="120" Minimum="-8" Maximum="24" StepFrequency="1"
+                                    ValueChanged="OnGapValueChanged" VerticalAlignment="Center" />
+                            </Grid>
                             <TextBlock x:Name="GapValueText" FontSize="13" FontWeight="SemiBold" Text="0 px" VerticalAlignment="Center" MinWidth="36" />
                         </StackPanel>
                     </Grid>
@@ -115,8 +137,12 @@
             </Border>
 
             <!-- Footer -->
-            <TextBlock FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap"
-                Text="Config: %LocalAppData%\RectangleWin\config.json. Close window to keep running in tray." />
+            <StackPanel Spacing="4">
+                <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
+                    Text="Edit raw settings (hotkeys, gaps, etc.) in JSON:" />
+                <HyperlinkButton x:Name="OpenConfigLink" Content="Open config.json" FontSize="12" FontWeight="SemiBold"
+                    Foreground="{StaticResource PrimaryBrush}" Padding="0,2,0,0" HorizontalAlignment="Left" Click="OnOpenConfigClick" />
+            </StackPanel>
         </StackPanel>
         </ScrollViewer>
     </Grid>

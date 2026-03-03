@@ -11,8 +11,9 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
-# Visual Studio
+# Visual Studio / editors
 .vs/
+.vscode/
 *.suo
 *.user
 *.userosscache

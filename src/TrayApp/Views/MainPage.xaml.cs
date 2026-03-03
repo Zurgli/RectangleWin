@@ -150,6 +150,31 @@ public sealed partial class MainPage : Page
         App.MainWindow?.Close();
     }
 
+    private void OnOpenConfigClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var path = AppConfig.ConfigPath();
+            if (!File.Exists(path))
+                return;
+            var psi = new System.Diagnostics.ProcessStartInfo(path)
+            {
+                UseShellExecute = true,
+                Verb = "edit" // Open with default editor (e.g. Notepad), not default "open" handler
+            };
+            try
+            {
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch
+            {
+                // Fallback: "edit" verb may not be registered for .json; open with Notepad
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("notepad.exe", path) { UseShellExecute = true });
+            }
+        }
+        catch { /* ignore */ }
+    }
+
     private static ((string Title, List<(string Action, string Shortcut)> Items) Halves, (string, List<(string Action, string Shortcut)>) Quarters, (string, List<(string Action, string Shortcut)>) Thirds, (string, List<(string Action, string Shortcut)>) Other) GroupHotkeysBySection(List<HotkeyBinding> hotkeys)
     {
         var actionToShortcut = hotkeys.ToDictionary(h => h.Action, h => (h.Action, Shortcut: FormatShortcut(h.Modifiers, h.VirtualKey)));
@@ -190,18 +215,39 @@ public sealed partial class MainPage : Page
     private static FrameworkElement TileIconForAction(string action)
     {
         const int size = 22;
+        if (action == "Undo")
+        {
+            var stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 175, 175, 175));
+            var fill = GetThemeBrush("AccentFillColorDefaultBrush") ?? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 120, 212));
+            return new Border
+            {
+                Width = size,
+                Height = size,
+                BorderBrush = stroke,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(1),
+                Child = new FontIcon
+                {
+                    Glyph = "\uE72B", // Curved arrow (undo)
+                    FontSize = 14,
+                    Foreground = fill,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+        }
         // Lighter grey so the small screen outline is clearly visible
-        var stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 175, 175, 175));
-        var fill = GetThemeBrush("AccentFillColorDefaultBrush") ?? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 120, 212));
+        var strokeDefault = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 175, 175, 175));
+        var fillDefault = GetThemeBrush("AccentFillColorDefaultBrush") ?? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 120, 212));
 
         var screen = new Border
         {
             Width = size,
             Height = size,
-            BorderBrush = stroke,
+            BorderBrush = strokeDefault,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(1),
-            Child = BuildTileGrid(action, size - 2, fill)
+            Child = BuildTileGrid(action, size - 2, fillDefault)
         };
         return screen;
     }
@@ -260,7 +306,7 @@ public sealed partial class MainPage : Page
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             Grid.SetColumnSpan(window, 1);
         }
-        else if (action == "Center" || action == "Undo")
+        else if (action == "Center")
         {
             for (int i = 0; i < 3; i++) { grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); }
             Grid.SetRow(window, 1);
