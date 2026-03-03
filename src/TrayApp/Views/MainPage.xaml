@@ -122,27 +122,29 @@
                 </StackPanel>
             </Border>
 
-            <!-- Feedback -->
+            <!-- Config & feedback card -->
             <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1" CornerRadius="8" Padding="12">
-                <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Text="Last shortcut:" />
-                    <TextBlock x:Name="LastHotkeyText" Grid.Column="1" FontSize="12" VerticalAlignment="Center" Text="(none yet)" />
-                </Grid>
+                BorderThickness="1" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="12">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Text="Last shortcut:" />
+                        <TextBlock x:Name="LastHotkeyText" Grid.Column="1" FontSize="12" VerticalAlignment="Center" Text="(none yet)" />
+                    </Grid>
+                    <Button x:Name="ReloadConfigButton" Content="Reload from config" Click="OnReloadConfigClick"
+                        HorizontalAlignment="Left" ToolTipService.ToolTip="Reload settings from config.json (e.g. after editing and saving)" />
+                    <StackPanel Spacing="4">
+                        <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
+                            Text="Edit raw settings (hotkeys, gaps, etc.) in JSON:" />
+                        <HyperlinkButton x:Name="OpenConfigLink" Content="Open config.json" FontSize="12" FontWeight="SemiBold"
+                            Foreground="{StaticResource PrimaryBrush}" Padding="0,2,0,0" HorizontalAlignment="Left" Click="OnOpenConfigClick" />
+                    </StackPanel>
+                </StackPanel>
             </Border>
-
-            <!-- Footer -->
-            <StackPanel Spacing="4">
-                <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
-                    Text="Edit raw settings (hotkeys, gaps, etc.) in JSON:" />
-                <HyperlinkButton x:Name="OpenConfigLink" Content="Open config.json" FontSize="12" FontWeight="SemiBold"
-                    Foreground="{StaticResource PrimaryBrush}" Padding="0,2,0,0" HorizontalAlignment="Left" Click="OnOpenConfigClick" />
-            </StackPanel>
         </StackPanel>
         </ScrollViewer>
     </Grid>

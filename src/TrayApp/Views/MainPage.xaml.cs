@@ -10,6 +10,8 @@ namespace TrayApp.Views;
 
 public sealed partial class MainPage : Page
 {
+    private ComboBox? _thirdsCombo;
+
     public MainPage()
     {
         InitializeComponent();
@@ -51,20 +53,53 @@ public sealed partial class MainPage : Page
         });
 
         logic.HotkeyTriggered += OnHotkeyTriggered;
+        logic.ConfigReloaded += OnConfigReloaded;
 
+        BindConfigToUI();
+    }
+
+    private void OnConfigReloaded()
+    {
+        BindConfigToUI();
+    }
+
+    private void BindConfigToUI()
+    {
+        if (App.Logic is not { } logic) return;
         var config = logic.Config;
         LaunchOnLoginCheckBox.IsOn = config.LaunchOnLogin;
         GapSlider.Value = config.GapSize;
         UpdateGapLabel(config.GapSize);
 
         var grouped = GroupHotkeysBySection(config.Hotkeys);
-        void AddSections(StackPanel panel, IEnumerable<(string Title, List<(string Action, string Shortcut)> Items)> sections)
+        if (_thirdsCombo == null)
         {
-            panel.Children.Clear();
-            foreach (var (title, items) in sections)
+            _thirdsCombo = new ComboBox
             {
-                if (items.Count == 0) continue;
-                var sectionStack = new StackPanel { Spacing = 6, Margin = new Thickness(0, 0, 0, 14) };
+                MinWidth = 120,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 0, 0, 2)
+            };
+            _thirdsCombo.Items.Add("Thirds");
+            _thirdsCombo.Items.Add("Fifths");
+            _thirdsCombo.SelectionChanged += OnThirdsLayoutChanged;
+        }
+        _thirdsCombo.SelectedItem = string.Equals(config.ThirdsLayoutMode, "Fifths", StringComparison.OrdinalIgnoreCase) ? "Fifths" : "Thirds";
+
+        AddSections(ShortcutsListLeft, new[] { grouped.Halves, grouped.Quarters });
+        AddSections(ShortcutsListRight, new[] { grouped.Thirds, grouped.Other }, headerReplacement: ("Thirds", _thirdsCombo));
+    }
+
+    private static void AddSections(StackPanel panel, IEnumerable<(string Title, List<(string Action, string Shortcut)> Items)> sections, (string Title, UIElement? HeaderControl)? headerReplacement = null)
+    {
+        panel.Children.Clear();
+        foreach (var (title, items) in sections)
+        {
+            if (items.Count == 0) continue;
+            var sectionStack = new StackPanel { Spacing = 6, Margin = new Thickness(0, 0, 0, 14) };
+            if (headerReplacement is { } hr && hr.Title == title && hr.HeaderControl is { } headerControl)
+                sectionStack.Children.Add(headerControl);
+            else
                 sectionStack.Children.Add(new TextBlock
                 {
                     Text = title,
@@ -72,49 +107,58 @@ public sealed partial class MainPage : Page
                     Foreground = GetThemeBrush("TextFillColorSecondaryBrush") ?? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 100, 100)),
                     Margin = new Thickness(0, 0, 0, 2)
                 });
-                var rowsPanel = new StackPanel { Spacing = 2 };
-                foreach (var (action, shortcut) in items)
+            var rowsPanel = new StackPanel { Spacing = 2 };
+            foreach (var (action, shortcut) in items)
+            {
+                var row = new Grid
                 {
-                    var row = new Grid
-                    {
-                        ColumnSpacing = 8,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Margin = new Thickness(0, 2, 0, 2)
-                    };
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0, GridUnitType.Auto) });
-                    var left = new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        Spacing = 8,
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-                    left.Children.Add(TileIconForAction(action));
-                    left.Children.Add(new TextBlock { Text = action, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
-                    var shortcutBlock = new TextBlock
-                    {
-                        Text = shortcut,
-                        FontSize = 12,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        HorizontalAlignment = HorizontalAlignment.Right
-                    };
-                    Grid.SetColumn(left, 0);
-                    Grid.SetColumn(shortcutBlock, 1);
-                    row.Children.Add(left);
-                    row.Children.Add(shortcutBlock);
-                    rowsPanel.Children.Add(row);
-                }
-                sectionStack.Children.Add(rowsPanel);
-                panel.Children.Add(sectionStack);
+                    ColumnSpacing = 8,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 2, 0, 2)
+                };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0, GridUnitType.Auto) });
+                var left = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                left.Children.Add(TileIconForAction(action));
+                left.Children.Add(new TextBlock { Text = action, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+                var shortcutBlock = new TextBlock
+                {
+                    Text = shortcut,
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                Grid.SetColumn(left, 0);
+                Grid.SetColumn(shortcutBlock, 1);
+                row.Children.Add(left);
+                row.Children.Add(shortcutBlock);
+                rowsPanel.Children.Add(row);
             }
+            sectionStack.Children.Add(rowsPanel);
+            panel.Children.Add(sectionStack);
         }
-        AddSections(ShortcutsListLeft, new[] { grouped.Halves, grouped.Quarters });
-        AddSections(ShortcutsListRight, new[] { grouped.Thirds, grouped.Other });
+    }
+
+    private void OnReloadConfigClick(object sender, RoutedEventArgs e)
+    {
+        App.Logic?.ReloadConfig();
     }
 
     private void OnHotkeyTriggered(string actionName)
     {
         LastHotkeyText.Text = $"{actionName}  ({DateTime.Now:HH:mm:ss})";
+    }
+
+    private void OnThirdsLayoutChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (App.Logic is not { } logic || sender is not ComboBox combo || combo.SelectedItem is not string s) return;
+        logic.Config.ThirdsLayoutMode = s;
+        logic.SaveConfig();
     }
 
     private void OnLaunchOnLoginToggled(object sender, RoutedEventArgs e)
@@ -177,7 +221,7 @@ public sealed partial class MainPage : Page
 
     private static ((string Title, List<(string Action, string Shortcut)> Items) Halves, (string, List<(string Action, string Shortcut)>) Quarters, (string, List<(string Action, string Shortcut)>) Thirds, (string, List<(string Action, string Shortcut)>) Other) GroupHotkeysBySection(List<HotkeyBinding> hotkeys)
     {
-        var actionToShortcut = hotkeys.ToDictionary(h => h.Action, h => (h.Action, Shortcut: FormatShortcut(h.Modifiers, h.VirtualKey)));
+        var actionToShortcut = hotkeys.ToDictionary(h => h.Action, h => (h.Action, Shortcut: ShortcutHelper.FormatShortcut(h.Modifiers, h.VirtualKey)));
 
         (string Title, string[] Actions)[] sectionDefs =
         {
@@ -314,7 +358,19 @@ public sealed partial class MainPage : Page
             Grid.SetRowSpan(window, 1);
             Grid.SetColumnSpan(window, 1);
         }
-        else if (action == "FirstThird" || action == "LastThird" || action == "FirstTwoThirds" || action == "LastTwoThirds" || action == "CenterThird" || action == "CenterTwoThirds")
+        else if (action == "CenterTwoThirds")
+        {
+            // Center 2/3: three columns 1:4:1 so the middle is 2/3 and centered
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(window, 1);
+            Grid.SetColumnSpan(window, 1);
+            Grid.SetRow(window, 0);
+            Grid.SetRowSpan(window, 1);
+        }
+        else if (action == "FirstThird" || action == "LastThird" || action == "FirstTwoThirds" || action == "LastTwoThirds" || action == "CenterThird")
         {
             for (int i = 0; i < 3; i++) { grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); }
             int col, span;
@@ -322,8 +378,7 @@ public sealed partial class MainPage : Page
             else if (action == "LastThird") { col = 2; span = 1; }
             else if (action == "FirstTwoThirds") { col = 0; span = 2; }
             else if (action == "LastTwoThirds") { col = 1; span = 2; }
-            else if (action == "CenterThird") { col = 1; span = 1; }
-            else { col = 1; span = 2; } // CenterTwoThirds
+            else { col = 1; span = 1; } // CenterThird
             Grid.SetColumn(window, col);
             Grid.SetColumnSpan(window, span);
             Grid.SetRow(window, 0);
@@ -347,33 +402,4 @@ public sealed partial class MainPage : Page
         return grid;
     }
 
-    private static string FormatShortcut(uint modifiers, uint vk)
-    {
-        var parts = new List<string>();
-        if ((modifiers & Interop.HotkeyWin32.MOD_WIN) != 0) parts.Add("Win");
-        if ((modifiers & Interop.HotkeyWin32.MOD_ALT) != 0) parts.Add("Alt");
-        if ((modifiers & Interop.HotkeyWin32.MOD_CONTROL) != 0) parts.Add("Ctrl");
-        if ((modifiers & Interop.HotkeyWin32.MOD_SHIFT) != 0) parts.Add("Shift");
-        parts.Add(VkToKeyName(vk));
-        return string.Join("+", parts);
-    }
-
-    private static string VkToKeyName(uint vk)
-    {
-        return vk switch
-        {
-            0x25 => "Left",
-            0x26 => "Up",
-            0x27 => "Right",
-            0x28 => "Down",
-            0x0D => "Enter",
-            0x2E => "Delete",
-            0x31 => "1", 0x32 => "2", 0x33 => "3", 0x34 => "4", 0x35 => "5", 0x36 => "6",
-            0x41 => "A", 0x42 => "B", 0x43 => "C", 0x44 => "D", 0x45 => "E", 0x46 => "F",
-            0x47 => "G", 0x48 => "H", 0x49 => "I", 0x4A => "J", 0x4B => "K", 0x4E => "N",
-            0x50 => "P", 0x51 => "Q", 0x52 => "R", 0x53 => "S", 0x54 => "T", 0x55 => "U",
-            0x57 => "W",
-            _ => $"0x{vk:X}"
-        };
-    }
 }

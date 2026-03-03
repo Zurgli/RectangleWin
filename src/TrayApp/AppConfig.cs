@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -99,6 +100,9 @@ public sealed class AppConfig
     // --- Hotkeys (Win+Alt by default) ---
     [JsonPropertyName("hotkeys")]
     public List<HotkeyBinding> Hotkeys { get; set; } = new();
+    /// <summary>"Thirds" (default) or "Fifths" for the thirds-section layout.</summary>
+    [JsonPropertyName("thirdsLayout")]
+    public string ThirdsLayoutMode { get; set; } = "Thirds";
 
     // Back-compat: old config may have PascalCase or different names
     [JsonIgnore]
@@ -159,6 +163,19 @@ public sealed class AppConfig
         return Path.Combine(dir, "config.json");
     }
 
+    /// <summary>JSON-only hotkey entry: human-readable shortcut or legacy modifiers/virtualKey.</summary>
+    private sealed class PersistedHotkey
+    {
+        [JsonPropertyName("action")]
+        public string Action { get; set; } = "";
+        [JsonPropertyName("shortcut")]
+        public string? Shortcut { get; set; }
+        [JsonPropertyName("modifiers")]
+        public uint? Modifiers { get; set; }
+        [JsonPropertyName("virtualKey")]
+        public uint? VirtualKey { get; set; }
+    }
+
     /// <summary>Only these properties are read from / written to config.json. Everything else uses defaults.</summary>
     private sealed class PersistedConfig
     {
@@ -187,7 +204,9 @@ public sealed class AppConfig
         [JsonPropertyName("applyGapsToMaximizeHeight")]
         public bool ApplyGapsToMaximizeHeight { get; set; } = true;
         [JsonPropertyName("hotkeys")]
-        public List<HotkeyBinding> Hotkeys { get; set; } = new();
+        public List<PersistedHotkey> Hotkeys { get; set; } = new();
+        [JsonPropertyName("thirdsLayout")]
+        public string ThirdsLayoutMode { get; set; } = "Thirds";
     }
 
     public static AppConfig Load()
@@ -214,8 +233,23 @@ public sealed class AppConfig
             result.TaskbarGapCompensationRight = p.TaskbarGapCompensationRight;
             result.ApplyGapsToMaximize = p.ApplyGapsToMaximize;
             result.ApplyGapsToMaximizeHeight = p.ApplyGapsToMaximizeHeight;
+            result.ThirdsLayoutMode = string.Equals(p.ThirdsLayoutMode, "Fifths", StringComparison.OrdinalIgnoreCase) ? "Fifths" : "Thirds";
             if (p.Hotkeys?.Count > 0)
-                result.Hotkeys = p.Hotkeys;
+            {
+                var bindings = new List<HotkeyBinding>();
+                foreach (var h in p.Hotkeys)
+                {
+                    string action = string.Equals(h.Action, "Restore", StringComparison.OrdinalIgnoreCase) ? "Undo" : (h.Action ?? "");
+                    if (action.Length == 0) continue;
+                    uint mod, vk;
+                    if (!string.IsNullOrEmpty(h.Shortcut) && ShortcutHelper.TryParseShortcut(h.Shortcut, out mod, out vk))
+                        bindings.Add(new HotkeyBinding(action, mod, vk));
+                    else if (h.Modifiers.HasValue && h.VirtualKey.HasValue)
+                        bindings.Add(new HotkeyBinding(action, h.Modifiers.Value | Interop.HotkeyWin32.MOD_NOREPEAT, h.VirtualKey.Value));
+                }
+                if (bindings.Count > 0)
+                    result.Hotkeys = bindings;
+            }
             return result;
         }
         catch
@@ -241,9 +275,19 @@ public sealed class AppConfig
             TaskbarGapCompensationRight = TaskbarGapCompensationRight,
             ApplyGapsToMaximize = ApplyGapsToMaximize,
             ApplyGapsToMaximizeHeight = ApplyGapsToMaximizeHeight,
-            Hotkeys = Hotkeys
+            Hotkeys = Hotkeys.Select(b => new PersistedHotkey
+            {
+                Action = string.Equals(b.Action, "Restore", StringComparison.OrdinalIgnoreCase) ? "Undo" : b.Action,
+                Shortcut = ShortcutHelper.FormatShortcut(b.Modifiers, b.VirtualKey)
+            }).ToList(),
+            ThirdsLayoutMode = ThirdsLayoutMode
         };
-        var opts = new JsonSerializerOptions { WriteIndented = true };
+        var opts = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
         File.WriteAllText(path, JsonSerializer.Serialize(p, opts));
     }
 }

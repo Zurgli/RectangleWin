@@ -32,6 +32,8 @@ public sealed class ExecuteOptions
     public float SpecifiedHeight { get; set; } = 1050f;
     public float AlmostMaximizeWidth { get; set; }
     public float AlmostMaximizeHeight { get; set; }
+    /// <summary>"Thirds" (default) or "Fifths" for the thirds-section layout.</summary>
+    public string ThirdsLayoutMode { get; set; } = "Thirds";
 }
 
 /// <summary>Orchestrates: resolve window -> work area -> calculation -> gaps -> SetWindowPos -> history.</summary>
@@ -112,7 +114,8 @@ public sealed class WindowManager
             windowRect.ToEngine(),
             work.ToEngine(),
             action,
-            lastInfo);
+            lastInfo,
+            options.ThirdsLayoutMode ?? "Thirds");
 
         CalculationResult? result = calculation.Calculate(parameters);
         if (result is not { } r) return false;

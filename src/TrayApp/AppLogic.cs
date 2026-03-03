@@ -19,6 +19,9 @@ public sealed class AppLogic
     /// <summary>Raised when a hotkey is pressed (on UI thread), with the action name. For UI feedback.</summary>
     public event Action<string>? HotkeyTriggered;
 
+    /// <summary>Raised after config is reloaded from file so UI can refresh.</summary>
+    public event Action? ConfigReloaded;
+
     public AppLogic(DispatcherQueue dispatcher)
     {
         _dispatcher = dispatcher;
@@ -64,6 +67,34 @@ public sealed class AppLogic
         Config.Save();
     }
 
+    /// <summary>Reload config from file, re-register hotkeys, and raise ConfigReloaded.</summary>
+    public void ReloadConfig()
+    {
+        foreach (var id in _idToAction.Keys.ToList())
+            _hotkeyManager.Unregister(id);
+        _idToAction.Clear();
+
+        Config = AppConfig.Load();
+        AppLog.DebugEnabled = Config.DebugLogging;
+        if (Config.DebugLogging)
+            _hotkeyManager.SetDiagnosticLog(AppLog.Write);
+        else
+            _hotkeyManager.SetDiagnosticLog(null);
+
+        foreach (var binding in Config.Hotkeys)
+        {
+            if (!TryParseWindowAction(binding.Action, out var action))
+                continue;
+            var result = _hotkeyManager.Register(binding.Modifiers, binding.VirtualKey);
+            if (result.Id is { } i)
+                _idToAction[i] = action;
+            else if (result.ErrorCode is { } err)
+                AppLog.Write($"Hotkey failed: {binding.Action} -> Win32 error {err}");
+        }
+
+        ConfigReloaded?.Invoke();
+    }
+
     private static bool TryParseWindowAction(string? actionName, out WindowAction action)
     {
         if (Enum.TryParse<WindowAction>(actionName, ignoreCase: true, out action))
@@ -101,7 +132,8 @@ public sealed class AppLogic
             SpecifiedWidth = Config.SpecifiedWidth,
             SpecifiedHeight = Config.SpecifiedHeight,
             AlmostMaximizeWidth = Config.AlmostMaximizeWidth,
-            AlmostMaximizeHeight = Config.AlmostMaximizeHeight
+            AlmostMaximizeHeight = Config.AlmostMaximizeHeight,
+            ThirdsLayoutMode = Config.ThirdsLayoutMode ?? "Thirds"
         };
     }
 

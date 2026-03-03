@@ -4,7 +4,8 @@ public readonly record struct RectCalculationParameters(
     Rect WindowRect,
     Rect WorkArea,
     WindowAction Action,
-    LastActionInfo? LastAction);
+    LastActionInfo? LastAction,
+    string ThirdsLayoutMode = "Thirds");
 
 public readonly record struct LastActionInfo(Rect Rect, WindowAction Action);
 
