@@ -204,18 +204,29 @@ pub fn run() {
             #[cfg(windows)]
             register_hotkeys(&app.handle(), &initial_config).ok();
 
-            // Tray: double-click shows window (right-click for system menu if any)
+            // Tray: single left-click shows window; right-click shows menu with Quit
             let handle = app.handle().clone();
             const TRAY_ICON: tauri::image::Image<'static> = tauri::include_image!("icons/icon.ico");
+            let quit_item = tauri::menu::MenuItem::with_id(&handle, "quit", "Quit RectangleWin", true, None::<&str>)
+                .expect("tray quit menu item");
+            let menu = tauri::menu::Menu::with_items(&handle, &[&quit_item]).expect("tray menu");
             let h = handle.clone();
             let _ = tauri::tray::TrayIconBuilder::new()
                 .icon(TRAY_ICON)
                 .tooltip("RectangleWin")
+                .menu(&menu)
+                .on_menu_event(move |_app, event| {
+                    if event.id().as_ref() == "quit" {
+                        std::process::exit(0);
+                    }
+                })
                 .on_tray_icon_event(move |_tray, event| {
-                    if let tauri::tray::TrayIconEvent::DoubleClick { .. } = event {
-                        if let Some(w) = h.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
+                    if let tauri::tray::TrayIconEvent::Click { button, .. } = event {
+                        if matches!(button, tauri::tray::MouseButton::Left) {
+                            if let Some(w) = h.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
                         }
                     }
                 })
