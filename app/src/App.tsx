@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import appIconUrl from "../src-tauri/icons/Icon.svg?url";
 import "./App.css";
 
 interface HotkeyForFrontend {
@@ -91,9 +93,11 @@ function App() {
   const [config, setConfig] = useState<ConfigForFrontend | null>(null);
   const [savedConfig, setSavedConfig] = useState<ConfigForFrontend | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [configPath, setConfigPath] = useState("");
   const [lastAction, setLastAction] = useState<string | null>(null);
   const configRef = useRef(config);
+  const quitBtnRef = useRef<HTMLButtonElement>(null);
   configRef.current = config;
 
   const settingsDirty =
@@ -184,6 +188,28 @@ function App() {
     invoke<string>("get_config_path").then(setConfigPath).catch(console.error);
   }, []);
 
+  // On launch, resize window height to fit content (no fixed height)
+  useEffect(() => {
+    const run = () => {
+      const main = document.querySelector(".scroll-main");
+      const titleBarHeight = 36;
+      if (!main) return;
+      const contentHeight = (main as HTMLElement).scrollHeight;
+      const totalHeight = titleBarHeight + contentHeight;
+      getCurrentWebviewWindow()
+        .innerSize()
+        .then((size) => {
+          getCurrentWebviewWindow().setSize({
+            width: size.width,
+            height: totalHeight,
+          });
+        })
+        .catch(() => {});
+    };
+    const t = setTimeout(run, 100);
+    return () => clearTimeout(t);
+  }, [config]);
+
   // When our window has focus, WH_KEYBOARD_LL often doesn't fire; handle shortcuts in the frontend.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -199,11 +225,82 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [shortcutToAction]);
 
-  return (
-    <main className="container">
-      <h1>RectangleWin</h1>
+  function minimizeToTray() {
+    getCurrentWebviewWindow().hide();
+  }
 
-      <section className="card">
+  function quit() {
+    setShowQuitConfirm(true);
+  }
+
+  function confirmQuit() {
+    setShowQuitConfirm(false);
+    invoke("exit_app");
+  }
+
+  useEffect(() => {
+    if (!showQuitConfirm) return;
+    const focusBtn = () => quitBtnRef.current?.focus();
+    const id = requestAnimationFrame(focusBtn);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowQuitConfirm(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showQuitConfirm]);
+
+  return (
+    <div className="app-root">
+      {showQuitConfirm && (
+        <div className="quit-overlay" role="dialog" aria-modal="true" aria-labelledby="quit-dialog-title">
+          <div className="quit-dialog">
+            <p id="quit-dialog-title" className="quit-dialog-title">Quit RectangleWin?</p>
+            <div className="quit-dialog-actions">
+              <button type="button" className="btn" onClick={() => setShowQuitConfirm(false)}>
+                Cancel
+              </button>
+              <button ref={quitBtnRef} type="button" className="btn btn-danger" onClick={confirmQuit}>
+                Quit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <header className="titlebar">
+        <div className="titlebar-drag" data-tauri-drag-region>
+          <img src={appIconUrl} alt="" className="titlebar-icon" />
+          <span className="titlebar-title-text">RectangleWin</span>
+        </div>
+        <div className="titlebar-controls">
+          <button
+            type="button"
+            className="titlebar-btn"
+            onClick={minimizeToTray}
+            title="Minimize to tray"
+            aria-label="Minimize to tray"
+          >
+            _
+          </button>
+          <button
+            type="button"
+            className="titlebar-btn titlebar-btn-close"
+            onClick={quit}
+            title="Quit"
+            aria-label="Quit"
+          >
+            X
+          </button>
+        </div>
+      </header>
+      <main className="scroll-main">
+        <div className="container">
+        <section className="card">
         <div className="card-header">
           <h2>Settings</h2>
           <div className="card-actions">
@@ -317,7 +414,9 @@ function App() {
           </p>
         )}
       </section>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }
 

@@ -153,6 +153,11 @@ fn register_hotkeys(_app: &tauri::AppHandle, _config: &Config) -> Result<(), Str
 }
 
 #[tauri::command]
+fn exit_app() {
+    std::process::exit(0);
+}
+
+#[tauri::command]
 fn open_config_in_editor() -> Result<(), String> {
     let path = config::config_path();
     if !path.exists() {
@@ -216,6 +221,7 @@ pub fn run() {
             save_config,
             reload_config,
             revert_to_defaults,
+            exit_app,
             open_config_in_editor,
             run_action,
         ])
