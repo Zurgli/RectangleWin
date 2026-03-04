@@ -46,6 +46,20 @@ const SECTIONS: { title: string; actions: string[] }[] = [
   },
 ];
 
+/** Display label for Thirds-section actions: show "Fifth(s)" when layout is Fifths. */
+function thirdsSectionActionLabel(action: string, layout: string): string {
+  if (layout !== "Fifths" && !layout.toLowerCase().includes("fifth")) return action;
+  const map: Record<string, string> = {
+    FirstThird: "FirstFifth",
+    FirstTwoThirds: "FirstTwoFifths",
+    CenterThird: "CenterFifth",
+    LastTwoThirds: "LastTwoFifths",
+    LastThird: "LastFifth",
+    CenterTwoThirds: "CenterTwoFifths",
+  };
+  return map[action] ?? action;
+}
+
 /** Map key from KeyboardEvent to our shortcut label (e.g. ArrowLeft -> Left). */
 function keyToShortcutLabel(key: string): string {
   const map: Record<string, string> = {
@@ -89,16 +103,136 @@ function RevertIcon() {
   );
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ pointerEvents: "none" }}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function OpenFolderIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ pointerEvents: "none" }}>
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+      <path d="M2 10h20" />
+    </svg>
+  );
+}
+
+/** Mini layout icon for a shortcut action (matches original app tile style). */
+function ShortcutTileIcon({ action }: { action: string }) {
+  const size = 22;
+  if (action === "Undo") {
+    return (
+      <span
+        className="shortcut-tile shortcut-tile-undo"
+        aria-hidden
+        style={{
+          position: "relative",
+          display: "inline-block",
+          width: size,
+          height: size,
+          boxSizing: "border-box",
+        }}
+      >
+        <span
+          className="shortcut-tile-undo-inner"
+          style={{
+            position: "absolute",
+            top: 1,
+            left: 1,
+            right: 1,
+            bottom: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 10h10a5 5 0 0 1 5 5v0a5 5 0 0 1-5 5H3" />
+            <path d="M3 10l4-4M3 10l4 4" />
+          </svg>
+        </span>
+      </span>
+    );
+  }
+  type GridSpec = { templateColumns: string; templateRows: string; col: number; row: number; colSpan?: number; rowSpan?: number };
+  const specs: Record<string, GridSpec> = {
+    LeftHalf: { templateColumns: "1fr 1fr", templateRows: "1fr", col: 1, row: 1 },
+    RightHalf: { templateColumns: "1fr 1fr", templateRows: "1fr", col: 2, row: 1 },
+    TopHalf: { templateColumns: "1fr", templateRows: "1fr 1fr", col: 1, row: 1 },
+    BottomHalf: { templateColumns: "1fr", templateRows: "1fr 1fr", col: 1, row: 2 },
+    UpperLeft: { templateColumns: "1fr 1fr", templateRows: "1fr 1fr", col: 1, row: 1 },
+    UpperRight: { templateColumns: "1fr 1fr", templateRows: "1fr 1fr", col: 2, row: 1 },
+    LowerLeft: { templateColumns: "1fr 1fr", templateRows: "1fr 1fr", col: 1, row: 2 },
+    LowerRight: { templateColumns: "1fr 1fr", templateRows: "1fr 1fr", col: 2, row: 2 },
+    FirstThird: { templateColumns: "1fr 1fr 1fr", templateRows: "1fr", col: 1, row: 1, colSpan: 1 },
+    FirstTwoThirds: { templateColumns: "1fr 1fr 1fr", templateRows: "1fr", col: 1, row: 1, colSpan: 2 },
+    CenterThird: { templateColumns: "1fr 1fr 1fr", templateRows: "1fr", col: 2, row: 1, colSpan: 1 },
+    LastTwoThirds: { templateColumns: "1fr 1fr 1fr", templateRows: "1fr", col: 2, row: 1, colSpan: 2 },
+    LastThird: { templateColumns: "1fr 1fr 1fr", templateRows: "1fr", col: 3, row: 1, colSpan: 1 },
+    CenterTwoThirds: { templateColumns: "1fr 1fr 1fr 1fr 1fr 1fr", templateRows: "1fr", col: 2, row: 1, colSpan: 4 },
+    Maximize: { templateColumns: "1fr", templateRows: "1fr", col: 1, row: 1 },
+    Center: { templateColumns: "1fr 1fr 1fr", templateRows: "1fr 1fr 1fr", col: 2, row: 2, colSpan: 1, rowSpan: 1 },
+    NextDisplay: { templateColumns: "1fr 1fr", templateRows: "1fr", col: 2, row: 1 },
+    PreviousDisplay: { templateColumns: "1fr 1fr", templateRows: "1fr", col: 1, row: 1 },
+  };
+  const spec = specs[action];
+  if (!spec) return null;
+  const { templateColumns, templateRows, col, row, colSpan = 1, rowSpan = 1 } = spec;
+  return (
+    <span
+      className="shortcut-tile shortcut-tile-grid"
+      aria-hidden
+      style={{
+        position: "relative",
+        display: "inline-block",
+        width: size,
+        height: size,
+        boxSizing: "border-box",
+      }}
+    >
+      <span
+        className="shortcut-tile-grid-inner"
+        style={{
+          position: "absolute",
+          top: 0.5,
+          left: 1,
+          right: 0.5,
+          bottom: 1,
+          display: "inline-grid",
+          gridTemplateColumns: templateColumns,
+          gridTemplateRows: templateRows,
+          gap: 1,
+        }}
+      >
+        <span
+          className="shortcut-tile-window"
+          style={{
+            gridColumn: `${col} / span ${colSpan}`,
+            gridRow: `${row} / span ${rowSpan}`,
+          }}
+        />
+      </span>
+    </span>
+  );
+}
+
 function App() {
   const [config, setConfig] = useState<ConfigForFrontend | null>(null);
   const [savedConfig, setSavedConfig] = useState<ConfigForFrontend | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [showRevertConfirm, setShowRevertConfirm] = useState(false);
   const [configPath, setConfigPath] = useState("");
-  const [lastAction, setLastAction] = useState<string | null>(null);
   const configRef = useRef(config);
   const quitBtnRef = useRef<HTMLButtonElement>(null);
+  const revertConfirmBtnRef = useRef<HTMLButtonElement>(null);
+  const thirdsDropdownRef = useRef<HTMLDivElement>(null);
   configRef.current = config;
+
+  const [thirdsDropdownOpen, setThirdsDropdownOpen] = useState(false);
 
   const settingsDirty =
     config != null &&
@@ -121,6 +255,14 @@ function App() {
       const c = await invoke<ConfigForFrontend>("reload_config");
       setConfig(c);
       setSavedConfig(c);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function openConfigFileLocation() {
+    try {
+      await invoke("open_config_file_location");
     } catch (e) {
       console.error(e);
     }
@@ -151,8 +293,12 @@ function App() {
       });
   }
 
-  async function revertToDefaults() {
-    if (!window.confirm("Revert all settings to defaults?")) return;
+  function openRevertConfirm() {
+    setShowRevertConfirm(true);
+  }
+
+  async function confirmRevert() {
+    setShowRevertConfirm(false);
     try {
       const c = await invoke<ConfigForFrontend>("revert_to_defaults");
       setConfig(c);
@@ -188,27 +334,6 @@ function App() {
     invoke<string>("get_config_path").then(setConfigPath).catch(console.error);
   }, []);
 
-  // On launch, resize window height to fit content (no fixed height)
-  useEffect(() => {
-    const run = () => {
-      const main = document.querySelector(".scroll-main");
-      const titleBarHeight = 36;
-      if (!main) return;
-      const contentHeight = (main as HTMLElement).scrollHeight;
-      const totalHeight = titleBarHeight + contentHeight;
-      getCurrentWebviewWindow()
-        .innerSize()
-        .then((size) => {
-          getCurrentWebviewWindow().setSize({
-            width: size.width,
-            height: totalHeight,
-          });
-        })
-        .catch(() => {});
-    };
-    const t = setTimeout(run, 100);
-    return () => clearTimeout(t);
-  }, [config]);
 
   // When our window has focus, WH_KEYBOARD_LL often doesn't fire; handle shortcuts in the frontend.
   useEffect(() => {
@@ -238,6 +363,31 @@ function App() {
     invoke("exit_app");
   }
 
+  async function setThirdsLayout(value: "Thirds" | "Fifths") {
+    if (!config) return;
+    setThirdsDropdownOpen(false);
+    const next = { ...config, thirdsLayout: value };
+    setConfig(next);
+    setSavedConfig(next);
+    try {
+      const c = await invoke<ConfigForFrontend>("save_config", { payload: next });
+      setConfig(c);
+      setSavedConfig(c);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  useEffect(() => {
+    if (!thirdsDropdownOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (thirdsDropdownRef.current?.contains(e.target as Node)) return;
+      setThirdsDropdownOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [thirdsDropdownOpen]);
+
   useEffect(() => {
     if (!showQuitConfirm) return;
     const focusBtn = () => quitBtnRef.current?.focus();
@@ -255,6 +405,23 @@ function App() {
     };
   }, [showQuitConfirm]);
 
+  useEffect(() => {
+    if (!showRevertConfirm) return;
+    const focusBtn = () => revertConfirmBtnRef.current?.focus();
+    const id = requestAnimationFrame(focusBtn);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowRevertConfirm(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showRevertConfirm]);
+
   return (
     <div className="app-root">
       {showQuitConfirm && (
@@ -267,6 +434,21 @@ function App() {
               </button>
               <button ref={quitBtnRef} type="button" className="btn btn-danger" onClick={confirmQuit}>
                 Quit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showRevertConfirm && (
+        <div className="quit-overlay" role="dialog" aria-modal="true" aria-labelledby="revert-dialog-title">
+          <div className="quit-dialog">
+            <p id="revert-dialog-title" className="quit-dialog-title">Revert all settings to defaults?</p>
+            <div className="quit-dialog-actions">
+              <button type="button" className="btn" onClick={() => setShowRevertConfirm(false)}>
+                Cancel
+              </button>
+              <button ref={revertConfirmBtnRef} type="button" className="btn btn-danger" onClick={confirmRevert}>
+                Revert
               </button>
             </div>
           </div>
@@ -307,7 +489,7 @@ function App() {
             <button
               type="button"
               className="icon-btn"
-              onClick={revertToDefaults}
+              onClick={openRevertConfirm}
               title="Revert to defaults"
               aria-label="Revert to defaults"
             >
@@ -356,7 +538,7 @@ function App() {
               <span className="slider-tick" aria-hidden />
               <input
                 type="range"
-                min={-10}
+                min={-5}
                 max={20}
                 step={1}
                 value={config?.gapSize ?? 0}
@@ -377,15 +559,61 @@ function App() {
         <div className="shortcuts-grid">
           {SECTIONS.map((section) => (
             <div key={section.title} className="shortcut-section">
-              <h3 className="section-title">{section.title}</h3>
+              {section.title === "Thirds" ? (
+                <div className="section-dropdown" ref={thirdsDropdownRef}>
+                  <button
+                    type="button"
+                    className="section-dropdown-trigger"
+                    onClick={() => setThirdsDropdownOpen((o) => !o)}
+                    aria-expanded={thirdsDropdownOpen}
+                    aria-haspopup="listbox"
+                    aria-label="Thirds layout"
+                  >
+                    <span>{config?.thirdsLayout === "Fifths" ? "Fifths" : "Thirds"}</span>
+                    <span className={`section-dropdown-chevron ${thirdsDropdownOpen ? "open" : ""}`}>
+                      <ChevronDownIcon />
+                    </span>
+                  </button>
+                  {thirdsDropdownOpen && (
+                    <div className="section-dropdown-menu" role="listbox">
+                      <button
+                        type="button"
+                        className="section-dropdown-option"
+                        role="option"
+                        aria-selected={config?.thirdsLayout !== "Fifths"}
+                        onClick={() => setThirdsLayout("Thirds")}
+                      >
+                        Thirds
+                      </button>
+                      <button
+                        type="button"
+                        className="section-dropdown-option"
+                        role="option"
+                        aria-selected={config?.thirdsLayout === "Fifths"}
+                        onClick={() => setThirdsLayout("Fifths")}
+                      >
+                        Fifths
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <h3 className="section-title">{section.title}</h3>
+              )}
               <ul className="shortcut-list">
                 {section.actions.map((action) => {
                   const shortcut = actionToShortcut[action];
                   if (!shortcut) return null;
-                  const label = action;
+                  const label =
+                    section.title === "Thirds"
+                      ? thirdsSectionActionLabel(action, config?.thirdsLayout ?? "Thirds")
+                      : action;
                   return (
                     <li key={action} className="shortcut-row">
-                      <span>{label}</span>
+                      <span className="shortcut-row-label">
+                        <ShortcutTileIcon action={action} />
+                        <span>{label}</span>
+                      </span>
                       <span className="shortcut-key">{shortcut}</span>
                     </li>
                   );
@@ -396,21 +624,26 @@ function App() {
         </div>
       </section>
 
-      <section className="card">
-        <p className="row">
-          <span className="muted">Last shortcut:</span>
-          <span>{lastAction ?? "(none yet)"}</span>
-        </p>
-        <button type="button" className="btn" onClick={reloadConfig}>
-          Reload from config
-        </button>
-        <p className="muted small">Edit raw settings (hotkeys, gaps, etc.) in JSON:</p>
-        <button type="button" className="link" onClick={openConfig}>
+      <section className="card card-config">
+        <p className="muted small">Edit hotkeys, gaps, and other settings in JSON:</p>
+        <button type="button" className="link link-neutral" onClick={openConfig}>
           Open config.json
         </button>
+        <button type="button" className="btn btn-neutral" onClick={reloadConfig}>
+          Reload from config
+        </button>
         {configPath && (
-          <p className="muted small" style={{ marginTop: 8 }}>
-            Config: {configPath}
+          <p className="muted small config-path-row" style={{ marginTop: 8 }}>
+            <span>{configPath}</span>
+            <button
+              type="button"
+              className="icon-btn icon-btn-sm"
+              onClick={openConfigFileLocation}
+              title="Open file location"
+              aria-label="Open file location"
+            >
+              <OpenFolderIcon />
+            </button>
           </p>
         )}
       </section>

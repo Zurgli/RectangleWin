@@ -14,7 +14,8 @@
       {
         "title": "RectangleWin",
         "width": 520,
-        "height": 400,
+        "height": 900,
+        "minWidth": 500,
         "center": true,
         "decorations": false,
         "skipTaskbar": true

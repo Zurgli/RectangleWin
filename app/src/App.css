@@ -167,6 +167,23 @@ body,
   background: #eee;
 }
 
+.icon-btn-sm {
+  width: 24px;
+  height: 24px;
+  margin: -4px 0 -4px 4px;
+}
+
+.config-path-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.config-path-row span {
+  word-break: break-all;
+}
+
 .icon-btn.saved {
   color: #16a34a;
   background: #dcfce7;
@@ -190,6 +207,74 @@ body,
   margin: 0 0 6px 0;
 }
 
+.section-dropdown {
+  position: relative;
+  margin-bottom: 6px;
+}
+
+.section-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.section-dropdown-trigger:hover {
+  color: #333;
+}
+
+.section-dropdown-chevron {
+  display: inline-flex;
+  transition: transform 0.15s ease;
+}
+
+.section-dropdown-chevron.open {
+  transform: rotate(180deg);
+}
+
+.section-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 2px;
+  min-width: 100px;
+  padding: 4px 0;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+}
+
+.section-dropdown-option {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.section-dropdown-option:hover {
+  background: #f0f0f0;
+}
+
+.section-dropdown-option[aria-selected="true"] {
+  background: #f5f5f5;
+  color: #1a1a1a;
+}
+
 .setting-row {
   display: flex;
   justify-content: space-between;
@@ -206,8 +291,8 @@ body,
 .switch {
   position: relative;
   display: inline-block;
-  width: 44px;
-  height: 24px;
+  width: 36px;
+  height: 20px;
   flex-shrink: 0;
 }
 
@@ -221,18 +306,19 @@ body,
   position: absolute;
   cursor: pointer;
   inset: 0;
-  background: #ccc;
-  border-radius: 24px;
+  background: #1a1a1a;
+  border-radius: 20px;
   transition: background 0.2s;
 }
 
 .switch-slider::before {
   content: "";
   position: absolute;
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
   background: #fff;
   border-radius: 50%;
   transition: transform 0.2s;
@@ -240,15 +326,16 @@ body,
 }
 
 .switch input:checked + .switch-slider {
-  background: #2563eb;
+  background: #fff;
 }
 
 .switch input:checked + .switch-slider::before {
-  transform: translateX(20px);
+  background: #1a1a1a;
+  transform: translateX(16px) translateY(-50%);
 }
 
 .switch input:focus-visible + .switch-slider {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
 
@@ -302,26 +389,28 @@ body,
   min-width: 120px;
   display: flex;
   align-items: center;
+  overflow: visible;
 }
 
 .slider-tick {
-  /* 0 is at -10 in range [-10, 20], so 10/30 = 33.33% from left */
+  /* Value 0: ratio 20%. Tick was at 1 with (20% + 3.6px); move left by 1/25 of range => 16% + 3.6px */
   position: absolute;
-  left: 33.33%;
+  left: calc(16% + 3.6px);
   transform: translateX(-1px);
   width: 2px;
-  height: 20px;
+  height: 14px;
   background: #999;
   border-radius: 1px;
   pointer-events: none;
   z-index: 0;
 }
 
+/* Slider height matches switch (20px) so track doesn't extend past it */
 .slider-track input[type="range"] {
   position: relative;
   z-index: 1;
   width: 100%;
-  height: 24px;
+  height: 20px;
   margin: 0;
   -webkit-appearance: none;
   appearance: none;
@@ -332,21 +421,26 @@ body,
   outline: none;
 }
 
+/* Expand track left only (thumb alignment with tick at 0) so right end aligns with switch; vertical margin centers 6px track in 20px */
 .slider-track input[type="range"]::-webkit-slider-runnable-track {
   height: 6px;
+  margin: 7px 0 7px -6px;
+  width: calc(100% + 6px);
   background: #e0e0e0;
   border-radius: 3px;
 }
 
+/* Thumb 12px, vertically centered: (track/2 - thumb/2) = 3 - 6 = -3px */
 .slider-track input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
+  margin-top: calc(3px - 6px);
   border-radius: 50%;
-  background: #2563eb;
+  background: #fff;
   cursor: pointer;
-  margin-top: -5px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .slider-track input[type="range"]::-moz-range-track {
@@ -356,11 +450,17 @@ body,
 }
 
 .slider-track input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #2563eb;
+  background: #fff;
   cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Center track and thumb vertically in Firefox */
+.slider-track input[type="range"]::-moz-focus-outer {
   border: none;
 }
 
@@ -398,6 +498,51 @@ body,
   font-size: 12px;
 }
 
+.shortcut-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shortcut-tile {
+  flex-shrink: 0;
+  background: #fff;
+  vertical-align: middle;
+}
+
+/* Only non-grid tiles (e.g. Undo) get flex centering; grid tiles keep inline-grid from inline style */
+.shortcut-tile:not(.shortcut-tile-grid) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shortcut-tile-grid {
+  border: 1px solid #b0b0b0;
+  border-radius: 2px;
+}
+
+.shortcut-tile-grid-inner {
+  box-sizing: border-box;
+}
+
+.shortcut-tile-window {
+  background: #e0e0e0;
+  border-radius: 1px;
+}
+
+.shortcut-tile-undo {
+  border: 1px solid #b0b0b0;
+  border-radius: 2px;
+  color: #e0e0e0;
+}
+
+.shortcut-tile-undo-inner svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
 .shortcut-key {
   font-family: ui-monospace, monospace;
   font-size: 12px;
@@ -414,26 +559,35 @@ body,
 
 .btn {
   display: inline-block;
-  padding: 8px 14px;
+  padding: 8px 16px;
   font-size: 13px;
   font-weight: 500;
   color: #fff;
-  background: #2563eb;
+  background: #6366f1;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
 }
 
 .btn:hover {
-  background: #1d4ed8;
+  background: #4f46e5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+  transform: scale(0.98);
 }
 
 .btn-danger {
-  background: #dc2626;
+  background: #e11d48;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 .btn-danger:hover {
-  background: #b91c1c;
+  background: #be123c;
+  box-shadow: 0 2px 6px rgba(225, 29, 72, 0.3);
 }
 
 .quit-overlay {
@@ -476,16 +630,37 @@ body,
 .link {
   background: none;
   border: none;
-  padding: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #2563eb;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6366f1;
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .link:hover {
-  color: #1d4ed8;
+  color: #4f46e5;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* Neutral (no accent color) for config section */
+.btn-neutral {
+  background: #e5e5e5;
+  color: #1a1a1a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.btn-neutral:hover {
+  background: #d4d4d4;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.link-neutral {
+  color: inherit;
+}
+.link-neutral:hover {
+  color: inherit;
+  background: rgba(0, 0, 0, 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -509,6 +684,40 @@ body,
   .titlebar-title-text {
     color: #e5e5e5;
   }
+  .section-dropdown-trigger {
+    color: #a0a0a0;
+  }
+  .section-dropdown-trigger:hover {
+    color: #e5e5e5;
+  }
+  .section-dropdown-menu {
+    background: #2a2a2a;
+    border-color: #404040;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  .section-dropdown-option {
+    color: #e5e5e5;
+  }
+  .section-dropdown-option:hover {
+    background: #404040;
+  }
+  .section-dropdown-option[aria-selected="true"] {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+  .shortcut-tile {
+    background: #2a2a2a;
+  }
+  .shortcut-tile-grid {
+    border-color: #555;
+  }
+  .shortcut-tile-window {
+    background: #808080;
+  }
+  .shortcut-tile-undo {
+    border-color: #555;
+    color: #808080;
+  }
   .titlebar-btn {
     color: #e5e5e5;
   }
@@ -518,6 +727,38 @@ body,
   .titlebar-btn-close:hover {
     background: #e81123;
     color: #fff;
+  }
+  .btn {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  .btn:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+  .btn-danger:hover {
+    box-shadow: 0 2px 6px rgba(225, 29, 72, 0.4);
+  }
+  .link {
+    color: #818cf8;
+  }
+  .link:hover {
+    color: #a5b4fc;
+    background: rgba(129, 140, 248, 0.15);
+  }
+  .btn-neutral {
+    background: #404040;
+    color: #e5e5e5;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+  .btn-neutral:hover {
+    background: #505050;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  .link-neutral {
+    color: inherit;
+  }
+  .link-neutral:hover {
+    color: inherit;
+    background: rgba(255, 255, 255, 0.08);
   }
   .quit-dialog {
     outline-color: #e5e5e5;
@@ -553,10 +794,13 @@ body,
     background: #14532d;
   }
   .switch-slider {
-    background: #505050;
+    background: #444;
   }
   .switch input:checked + .switch-slider {
-    background: #3b82f6;
+    background: #e5e5e5;
+  }
+  .switch input:checked + .switch-slider::before {
+    background: #1a1a1a;
   }
   .switch-slider::before {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -576,12 +820,12 @@ body,
     background: #404040;
   }
   .slider-track input[type="range"]::-webkit-slider-thumb {
-    background: #3b82f6;
+    background: #fff;
   }
   .slider-track input[type="range"]::-moz-range-track {
     background: #404040;
   }
   .slider-track input[type="range"]::-moz-range-thumb {
-    background: #3b82f6;
+    background: #fff;
   }
 }

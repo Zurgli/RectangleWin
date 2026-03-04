@@ -167,6 +167,13 @@ fn open_config_in_editor() -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_config_file_location() -> Result<(), String> {
+    let path = config::config_path();
+    let dir = path.parent().ok_or_else(|| "No parent directory".to_string())?;
+    opener::open(dir).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn run_action(state: tauri::State<AppState>, action: String) -> Result<bool, String> {
     let action = engine::WindowAction::from_str(&action).ok_or_else(|| "Unknown action".to_string())?;
     let options = {
@@ -223,6 +230,7 @@ pub fn run() {
             revert_to_defaults,
             exit_app,
             open_config_in_editor,
+            open_config_file_location,
             run_action,
         ])
         .run(tauri::generate_context!())
