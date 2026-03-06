@@ -27,12 +27,16 @@ pub fn vk_to_key_name(vk: u32) -> String {
         0x28 => "Down".into(),
         0x0D => "Enter".into(),
         0x2E => "Delete".into(),
+        0x30 => "0".into(),
         0x31 => "1".into(),
         0x32 => "2".into(),
         0x33 => "3".into(),
         0x34 => "4".into(),
         0x35 => "5".into(),
         0x36 => "6".into(),
+        0x37 => "7".into(),
+        0x38 => "8".into(),
+        0x39 => "9".into(),
         0x41 => "A".into(),
         0x42 => "B".into(),
         0x43 => "C".into(),
@@ -64,7 +68,7 @@ fn key_name_to_vk(name: &str) -> Option<u32> {
     if n.len() == 1 {
         let c = n.chars().next()?;
         if ('0'..='9').contains(&c) {
-            return Some(0x31 + (c as u32 - '0' as u32));
+            return Some(0x30 + (c as u32 - '0' as u32));
         }
         if ('A'..='Z').contains(&c) {
             return Some(0x41 + (c as u32 - 'A' as u32));
