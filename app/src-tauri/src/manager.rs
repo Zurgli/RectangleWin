@@ -160,10 +160,26 @@ fn get_current_and_adjacent_work_areas(
     (current_work, prev, next)
 }
 
+/// Cycle order for repeat section hotkey: Fourths -> Fifths -> Thirds -> Fourths.
+const SECTION_LAYOUT_CYCLE: &[&str] = &["Fourths", "Fifths", "Thirds"];
+
+fn section_layout_cycle_index(layout: &str) -> usize {
+    if layout.eq_ignore_ascii_case("Fifths") {
+        1
+    } else if layout.eq_ignore_ascii_case("Thirds") {
+        2
+    } else {
+        0
+    } // Fourths or default
+}
+
 #[cfg(windows)]
 pub struct WindowManager {
     restore_rects: HashMap<isize, Rect>,
     last_actions: HashMap<isize, (WindowAction, Rect)>,
+    /// When the same section hotkey is pressed again, we cycle layout (Fourths -> Fifths -> Thirds -> Fourths).
+    last_section_action: Option<WindowAction>,
+    section_cycle_index: usize,
 }
 
 #[cfg(windows)]
@@ -172,6 +188,8 @@ impl WindowManager {
         Self {
             restore_rects: HashMap::new(),
             last_actions: HashMap::new(),
+            last_section_action: None,
+            section_cycle_index: 0,
         }
     }
 
@@ -291,12 +309,30 @@ impl WindowManager {
                 action: *a,
             });
 
+        let thirds_layout_mode = if action.is_section_action() {
+            if self.last_section_action == Some(action) {
+                let layout = SECTION_LAYOUT_CYCLE[self.section_cycle_index].to_string();
+                self.section_cycle_index =
+                    (self.section_cycle_index + 1) % SECTION_LAYOUT_CYCLE.len();
+                layout
+            } else {
+                self.last_section_action = Some(action);
+                let config_layout = options.thirds_layout_mode.clone();
+                self.section_cycle_index =
+                    (section_layout_cycle_index(&config_layout) + 1) % SECTION_LAYOUT_CYCLE.len();
+                config_layout
+            }
+        } else {
+            self.last_section_action = None;
+            options.thirds_layout_mode.clone()
+        };
+
         let params = CalculationParams {
             window_rect: EngineRect::from_rect(&window_rect),
             work_area: EngineRect::from_rect(&work),
             action,
             last_action: last_info,
-            thirds_layout_mode: options.thirds_layout_mode.clone(),
+            thirds_layout_mode,
         };
 
         let result = match calculate(&params) {

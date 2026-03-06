@@ -80,6 +80,18 @@ impl WindowAction {
             Self::Undo | Self::NextDisplay | Self::PreviousDisplay
         )
     }
+
+    /// True if this is one of the 5 section actions (Left, Left two, Center, Right two, Right).
+    pub fn is_section_action(&self) -> bool {
+        matches!(
+            self,
+            Self::FirstThird
+                | Self::FirstTwoThirds
+                | Self::CenterThird
+                | Self::LastTwoThirds
+                | Self::LastThird
+        )
+    }
 }
 
 /// Parameters for layout calculation (matches RectCalculationParameters).

@@ -18,7 +18,7 @@
         "minWidth": 500,
         "center": true,
         "decorations": false,
-        "skipTaskbar": true
+        "skipTaskbar": false
       }
     ],
     "security": {
