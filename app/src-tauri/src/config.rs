@@ -171,7 +171,6 @@ impl Config {
             ("CenterThird", 0x46),
             ("LastTwoThirds", 0x54),
             ("LastThird", 0x47),
-            ("CenterTwoThirds", 0x52),
             ("NextDisplay", 0x4E),
             ("PreviousDisplay", 0x50),
         ]
@@ -225,6 +224,8 @@ pub fn load() -> Config {
 
     let thirds_layout = if p.thirds_layout.eq_ignore_ascii_case("Fifths") {
         "Fifths".into()
+    } else if p.thirds_layout.eq_ignore_ascii_case("Fourths") {
+        "Fourths".into()
     } else {
         "Thirds".into()
     };
@@ -327,6 +328,8 @@ pub fn config_from_frontend(p: ConfigForFrontend) -> Config {
         hotkeys,
         thirds_layout: if p.thirds_layout.eq_ignore_ascii_case("Fifths") {
             "Fifths".into()
+        } else if p.thirds_layout.eq_ignore_ascii_case("Fourths") {
+            "Fourths".into()
         } else {
             "Thirds".into()
         },

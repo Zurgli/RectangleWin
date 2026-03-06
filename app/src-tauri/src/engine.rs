@@ -19,12 +19,11 @@ pub enum WindowAction {
     UpperRight,
     NextDisplay,
     PreviousDisplay,
-    FirstThird,
-    FirstTwoThirds,
-    CenterThird,
-    LastTwoThirds,
-    LastThird,
-    CenterTwoThirds,
+    FirstThird,   // left 1 section
+    FirstTwoThirds, // left 2 sections
+    CenterThird,  // center 1 section
+    LastTwoThirds, // right 2 sections
+    LastThird,    // right 1 section
 }
 
 impl WindowAction {
@@ -48,7 +47,6 @@ impl WindowAction {
             "CenterThird" => Some(Self::CenterThird),
             "LastTwoThirds" => Some(Self::LastTwoThirds),
             "LastThird" => Some(Self::LastThird),
-            "CenterTwoThirds" => Some(Self::CenterTwoThirds),
             _ => None,
         }
     }
@@ -73,7 +71,6 @@ impl WindowAction {
             Self::CenterThird => "CenterThird",
             Self::LastTwoThirds => "LastTwoThirds",
             Self::LastThird => "LastThird",
-            Self::CenterTwoThirds => "CenterTwoThirds",
         }
     }
 
@@ -109,8 +106,15 @@ pub struct CalculationResult {
     pub resulting_action: WindowAction,
 }
 
-fn is_fifths(mode: &str) -> bool {
-    mode.eq_ignore_ascii_case("Fifths")
+/// Section layout: (left_part, center_part, right_part). Thirds 1|1|1, Fourths 1|2|1, Fifths 1|3|1.
+fn section_ratios(mode: &str) -> (i32, i32, i32) {
+    if mode.eq_ignore_ascii_case("Fifths") {
+        (1, 3, 1)
+    } else if mode.eq_ignore_ascii_case("Fourths") {
+        (1, 2, 1)
+    } else {
+        (1, 1, 1)
+    }
 }
 
 /// Compute the target rect for the given action and params. Returns None for Undo/NextDisplay/PreviousDisplay.
@@ -182,117 +186,59 @@ pub fn calculate(params: &CalculationParams) -> Option<CalculationResult> {
             bottom: w.bottom,
         },
         FirstThird => {
-            if is_fifths(&params.thirds_layout_mode) {
-                let unit = width / 5;
-                EngineRect {
-                    left: w.left,
-                    top: w.top,
-                    right: w.left + unit,
-                    bottom: w.bottom,
-                }
-            } else {
-                let third = width / 3;
-                EngineRect {
-                    left: w.left,
-                    top: w.top,
-                    right: w.left + third,
-                    bottom: w.bottom,
-                }
+            let (l, c, r) = section_ratios(&params.thirds_layout_mode);
+            let total = l + c + r;
+            let right_x = w.left + (width * l) / total;
+            EngineRect {
+                left: w.left,
+                top: w.top,
+                right: right_x,
+                bottom: w.bottom,
             }
         }
         FirstTwoThirds => {
-            if is_fifths(&params.thirds_layout_mode) {
-                let unit = width / 5;
-                EngineRect {
-                    left: w.left,
-                    top: w.top,
-                    right: w.left + 4 * unit,
-                    bottom: w.bottom,
-                }
-            } else {
-                let third = width / 3;
-                EngineRect {
-                    left: w.left,
-                    top: w.top,
-                    right: w.left + 2 * third,
-                    bottom: w.bottom,
-                }
+            let (l, c, r) = section_ratios(&params.thirds_layout_mode);
+            let total = l + c + r;
+            let right_x = w.left + (width * (l + c)) / total;
+            EngineRect {
+                left: w.left,
+                top: w.top,
+                right: right_x,
+                bottom: w.bottom,
             }
         }
         CenterThird => {
-            if is_fifths(&params.thirds_layout_mode) {
-                let unit = width / 5;
-                EngineRect {
-                    left: w.left + unit,
-                    top: w.top,
-                    right: w.left + 4 * unit,
-                    bottom: w.bottom,
-                }
-            } else {
-                let third = width / 3;
-                EngineRect {
-                    left: w.left + third,
-                    top: w.top,
-                    right: w.left + 2 * third,
-                    bottom: w.bottom,
-                }
+            let (l, c, r) = section_ratios(&params.thirds_layout_mode);
+            let total = l + c + r;
+            let left_x = w.left + (width * l) / total;
+            let right_x = w.left + (width * (l + c)) / total;
+            EngineRect {
+                left: left_x,
+                top: w.top,
+                right: right_x,
+                bottom: w.bottom,
             }
         }
         LastTwoThirds => {
-            if is_fifths(&params.thirds_layout_mode) {
-                let unit = width / 5;
-                EngineRect {
-                    left: w.left + unit,
-                    top: w.top,
-                    right: w.right,
-                    bottom: w.bottom,
-                }
-            } else {
-                let third = width / 3;
-                EngineRect {
-                    left: w.left + third,
-                    top: w.top,
-                    right: w.right,
-                    bottom: w.bottom,
-                }
+            let (l, c, r) = section_ratios(&params.thirds_layout_mode);
+            let total = l + c + r;
+            let left_x = w.left + (width * l) / total;
+            EngineRect {
+                left: left_x,
+                top: w.top,
+                right: w.right,
+                bottom: w.bottom,
             }
         }
         LastThird => {
-            if is_fifths(&params.thirds_layout_mode) {
-                let unit = width / 5;
-                EngineRect {
-                    left: w.left + 4 * unit,
-                    top: w.top,
-                    right: w.right,
-                    bottom: w.bottom,
-                }
-            } else {
-                let third = width / 3;
-                EngineRect {
-                    left: w.left + 2 * third,
-                    top: w.top,
-                    right: w.right,
-                    bottom: w.bottom,
-                }
-            }
-        }
-        CenterTwoThirds => {
-            if is_fifths(&params.thirds_layout_mode) {
-                let tenth = width / 10;
-                EngineRect {
-                    left: w.left + tenth,
-                    top: w.top,
-                    right: w.left + 9 * tenth,
-                    bottom: w.bottom,
-                }
-            } else {
-                let sixth = width / 6;
-                EngineRect {
-                    left: w.left + sixth,
-                    top: w.top,
-                    right: w.left + 5 * sixth,
-                    bottom: w.bottom,
-                }
+            let (l, c, r) = section_ratios(&params.thirds_layout_mode);
+            let total = l + c + r;
+            let left_x = w.left + (width * (l + c)) / total;
+            EngineRect {
+                left: left_x,
+                top: w.top,
+                right: w.right,
+                bottom: w.bottom,
             }
         }
         Undo | NextDisplay | PreviousDisplay => return None,

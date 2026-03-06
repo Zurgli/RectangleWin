@@ -205,11 +205,23 @@ body,
   font-weight: 600;
   color: #666;
   margin: 0 0 6px 0;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
 }
 
 .section-dropdown {
   position: relative;
   margin-bottom: 6px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+}
+
+.section-dropdown-trigger-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .section-dropdown-trigger {
@@ -254,7 +266,9 @@ body,
 }
 
 .section-dropdown-option {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 6px 12px;
   font-size: 12px;
@@ -504,8 +518,16 @@ body,
   gap: 8px;
 }
 
+.shortcut-row-label .shortcut-tile:first-child {
+  flex: 0 0 22px;
+}
+
 .shortcut-tile {
   flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  box-sizing: border-box;
   background: #fff;
   vertical-align: middle;
 }
