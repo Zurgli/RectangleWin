@@ -1,6 +1,6 @@
-# Tauri + React + Typescript
+# RectangleWin (Tauri app)
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+This folder is the RectangleWin application: Tauri 2 + React + TypeScript in Vite. For project overview, build instructions, and config, see the [root README](../README.md).
 
 ## Recommended IDE Setup
 
