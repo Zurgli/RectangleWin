@@ -22,6 +22,14 @@ impl Rect {
     pub fn is_empty(&self) -> bool {
         self.left == 0 && self.top == 0 && self.right == 0 && self.bottom == 0
     }
+
+    /// True if this rect matches other within tolerance (for "window is still snapped" check).
+    pub fn approximately_equals(&self, other: &Rect, tolerance: i32) -> bool {
+        (self.left - other.left).abs() <= tolerance
+            && (self.top - other.top).abs() <= tolerance
+            && (self.right - other.right).abs() <= tolerance
+            && (self.bottom - other.bottom).abs() <= tolerance
+    }
 }
 
 /// Platform-agnostic rect for engine calculations (same as C# WindowEngine.Rect).

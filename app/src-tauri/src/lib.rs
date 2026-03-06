@@ -203,6 +203,8 @@ pub fn run() {
         .setup(move |app| {
             #[cfg(windows)]
             register_hotkeys(&app.handle(), &initial_config).ok();
+            #[cfg(windows)]
+            win32::start_move_size_end_hook(app.handle().clone());
 
             // Tray: single left-click shows window; right-click shows menu with Quit
             let handle = app.handle().clone();

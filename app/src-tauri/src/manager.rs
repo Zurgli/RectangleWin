@@ -87,6 +87,16 @@ fn hwnd_to_key(hwnd: windows::Win32::Foundation::HWND) -> isize {
     hwnd.0 as isize
 }
 
+/// True if the window is in a free (non-snapped) state: no last action, or current bounds differ from last applied rect.
+#[cfg(windows)]
+fn is_window_free(manager: &WindowManager, key: isize, current_rect: &Rect) -> bool {
+    const TOLERANCE: i32 = 5;
+    match manager.last_actions.get(&key) {
+        None => true,
+        Some((_, last_rect)) => !current_rect.approximately_equals(last_rect, TOLERANCE),
+    }
+}
+
 #[cfg(windows)]
 fn inset_work_area_by_screen_edge_gaps(work: Rect, opts: &ExecuteOptions) -> Rect {
     let t = opts.screen_edge_gap_top as i32;
@@ -165,6 +175,21 @@ impl WindowManager {
         }
     }
 
+    /// Restore rect for the given window key (for move/size-end hook).
+    pub fn get_restore_rect(&self, key: isize) -> Option<Rect> {
+        self.restore_rects.get(&key).copied()
+    }
+
+    /// Last applied rect for the given window key (for move/size-end hook).
+    pub fn get_last_action_rect(&self, key: isize) -> Option<Rect> {
+        self.last_actions.get(&key).map(|(_, r)| *r)
+    }
+
+    /// Remove last action for the given window (after restoring on unsnap).
+    pub fn remove_last_action(&mut self, key: isize) {
+        self.last_actions.remove(&key);
+    }
+
     /// Execute action on foreground window (or None to use foreground). Returns true if applied.
     pub fn execute(
         &mut self,
@@ -220,7 +245,7 @@ impl WindowManager {
                 None => return false,
             };
             dest = inset_work_area_by_screen_edge_gaps(dest, options);
-            if options.update_restore_rect {
+            if options.update_restore_rect && is_window_free(self, key, &current_rect) {
                 self.restore_rects.insert(key, current_rect);
             }
             let mut engine_rect = EngineRect::from_rect(&dest);
@@ -291,7 +316,7 @@ impl WindowManager {
             target_rect = apply_gaps(target_rect, options.gap_size);
         }
 
-        if options.update_restore_rect {
+        if options.update_restore_rect && is_window_free(self, key, &window_rect) {
             self.restore_rects.insert(key, window_rect);
         }
 
