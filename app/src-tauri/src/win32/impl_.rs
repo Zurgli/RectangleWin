@@ -1,20 +1,20 @@
 //! Windows implementation of Win32 wrappers.
 
 use crate::rect::Rect;
-use windows::Win32::Foundation::{CloseHandle, RECT as WinRect, BOOL, HWND, LPARAM, POINT};
+use windows::Win32::Foundation::{CloseHandle, BOOL, HWND, LPARAM, POINT, RECT as WinRect};
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Graphics::Gdi::{
-    EnumDisplayMonitors, GetMonitorInfoW, HMONITOR, MonitorFromPoint, MonitorFromWindow,
+    EnumDisplayMonitors, GetMonitorInfoW, MonitorFromPoint, MonitorFromWindow, HMONITOR,
     MONITORINFOEXW, MONITOR_DEFAULTTONEAREST,
 };
 use windows::Win32::System::Threading::{
-    OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_NAME_NATIVE,
-    QueryFullProcessImageNameW,
+    OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_NATIVE, PROCESS_QUERY_LIMITED_INFORMATION,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetAncestor, GetCursorPos, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId,
-    IsWindow, SetCursorPos, SetForegroundWindow, SetWindowPos,
-    GA_ROOT, SET_WINDOW_POS_FLAGS,
+    GetAncestor, GetCursorPos, GetForegroundWindow, GetWindowLongW, GetWindowRect,
+    GetWindowThreadProcessId, IsWindow, IsWindowVisible, SetCursorPos, SetForegroundWindow,
+    SetWindowPos, GA_ROOT, GWL_EXSTYLE, GWL_STYLE, SET_WINDOW_POS_FLAGS, WS_CAPTION,
+    WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME, WS_VISIBLE,
 };
 
 const SWP_NOZORDER_U: u32 = 0x0004;
@@ -38,22 +38,67 @@ fn rect_to_win_rect(r: &Rect) -> WinRect {
     }
 }
 
+fn has_style(style: u32, flag: u32) -> bool {
+    (style & flag) == flag
+}
+
+fn is_non_processable_popup(style: u32) -> bool {
+    let is_popup = has_style(style, WS_POPUP.0);
+    let has_thick_frame = has_style(style, WS_THICKFRAME.0);
+    let has_caption = has_style(style, WS_CAPTION.0);
+    let has_minimize_or_maximize =
+        has_style(style, WS_MINIMIZEBOX.0) || has_style(style, WS_MAXIMIZEBOX.0);
+
+    is_popup && !(has_thick_frame && (has_caption || has_minimize_or_maximize))
+}
+
+fn is_snap_target_window(hwnd: HWND) -> bool {
+    unsafe {
+        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() || !IsWindowVisible(hwnd).as_bool() {
+            return false;
+        }
+
+        let style = GetWindowLongW(hwnd, GWL_STYLE) as u32;
+        let ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+
+        if !has_style(style, WS_VISIBLE.0) {
+            return false;
+        }
+        if has_style(ex_style, WS_EX_TOOLWINDOW.0) {
+            return false;
+        }
+        if is_non_processable_popup(style) {
+            return false;
+        }
+
+        true
+    }
+}
+
+/// Resolve a caller-provided HWND to a snap target window, filtering out shell popups
+/// and utility surfaces like the Start menu or tool windows.
+pub fn resolve_snap_target_window(hwnd: HWND) -> Option<HWND> {
+    unsafe {
+        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() {
+            return None;
+        }
+
+        let root = GetAncestor(hwnd, GA_ROOT);
+        let candidate = if root.0.is_null() || !IsWindow(root).as_bool() {
+            hwnd
+        } else {
+            root
+        };
+
+        is_snap_target_window(candidate).then_some(candidate)
+    }
+}
+
 /// Get foreground window handle (root/top-level), or None if invalid.
 /// Uses GetAncestor(GA_ROOT) so we always move the top-level window, not a child
 /// (e.g. when the Tauri/WebView window is focused, the foreground may be the WebView child).
 pub fn get_foreground_window() -> Option<HWND> {
-    unsafe {
-        let hwnd = GetForegroundWindow();
-        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() {
-            return None;
-        }
-        let root = GetAncestor(hwnd, GA_ROOT);
-        if root.0.is_null() || !IsWindow(root).as_bool() {
-            Some(hwnd)
-        } else {
-            Some(root)
-        }
-    }
+    unsafe { resolve_snap_target_window(GetForegroundWindow()) }
 }
 
 /// Get window bounds (prefer DWM extended frame bounds).
@@ -268,5 +313,72 @@ pub fn get_process_image_name(hwnd: HWND) -> Option<String> {
             .file_name()
             .and_then(|n| n.to_str())
             .map(String::from)
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::{is_non_processable_popup, is_snap_target_window, resolve_snap_target_window};
+    use windows::core::w;
+    use windows::Win32::Foundation::{HINSTANCE, HWND};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CreateWindowExW, DefWindowProcW, DestroyWindow, RegisterClassW, HMENU, WNDCLASSW,
+        WS_CAPTION, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX,
+        WS_MINIMIZEBOX, WS_OVERLAPPED, WS_POPUP, WS_THICKFRAME, WS_VISIBLE,
+    };
+
+    #[test]
+    fn popup_menu_styles_are_rejected() {
+        let style = (WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VISIBLE).0;
+        assert!(is_non_processable_popup(style));
+    }
+
+    #[test]
+    fn popup_app_styles_are_allowed() {
+        let style =
+            (WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_VISIBLE)
+                .0;
+        assert!(!is_non_processable_popup(style));
+    }
+
+    #[test]
+    fn tool_windows_are_not_snap_targets() {
+        unsafe {
+            let class_name = w!("RectangleWinImplTests");
+            let mut wc = WNDCLASSW::default();
+            wc.lpfnWndProc = Some(wndproc);
+            wc.lpszClassName = class_name;
+            let _ = RegisterClassW(&wc);
+
+            let hwnd = CreateWindowExW(
+                WS_EX_TOOLWINDOW,
+                class_name,
+                w!("Tool"),
+                WS_OVERLAPPED | WS_VISIBLE,
+                0,
+                0,
+                100,
+                100,
+                HWND::default(),
+                HMENU::default(),
+                HINSTANCE::default(),
+                None,
+            )
+            .expect("create tool window");
+
+            assert!(!is_snap_target_window(hwnd));
+            assert_eq!(resolve_snap_target_window(hwnd), None);
+
+            let _ = DestroyWindow(hwnd);
+        }
+    }
+
+    unsafe extern "system" fn wndproc(
+        hwnd: HWND,
+        msg: u32,
+        wparam: windows::Win32::Foundation::WPARAM,
+        lparam: windows::Win32::Foundation::LPARAM,
+    ) -> windows::Win32::Foundation::LRESULT {
+        DefWindowProcW(hwnd, msg, wparam, lparam)
     }
 }

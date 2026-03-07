@@ -10,8 +10,8 @@ use crate::rect::{EngineRect, Rect};
 #[cfg(windows)]
 use crate::win32::{
     enum_monitors, get_cursor_pos, get_foreground_window, get_monitor_from_point,
-    get_monitor_from_window, get_process_image_name, set_cursor_pos, set_foreground_window,
-    set_window_bounds, try_get_monitor_info, try_get_window_bounds,
+    get_monitor_from_window, get_process_image_name, resolve_snap_target_window, set_cursor_pos,
+    set_foreground_window, set_window_bounds, try_get_monitor_info, try_get_window_bounds,
 };
 #[cfg(windows)]
 use std::collections::HashMap;
@@ -266,7 +266,10 @@ impl WindowManager {
         _hwnd_override: Option<windows::Win32::Foundation::HWND>,
         options: &ExecuteOptions,
     ) -> bool {
-        let hwnd = match _hwnd_override.or_else(get_foreground_window) {
+        let hwnd = match _hwnd_override
+            .and_then(resolve_snap_target_window)
+            .or_else(get_foreground_window)
+        {
             Some(h) => h,
             None => return false,
         };
