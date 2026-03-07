@@ -13,8 +13,73 @@ RectangleWin is a minimal tray app (Rust + Tauri): global hotkeys (Win+Alt by de
 ## Requirements
 
 - Windows 10/11
-- [Rust](https://rustup.rs/) toolchain
+- [Rust](https://rustup.rs/) toolchain (use the default `x86_64-pc-windows-msvc` target)
 - [Node.js](https://nodejs.org/) (and npm or pnpm) for the frontend
+- **Visual Studio Build Tools 2022** (recommended) or Visual Studio with the **“Desktop development with C++”** workload. The Rust MSVC target needs:
+  - MSVC x64/x86 build tools
+  - Windows 10/11 SDK
+  - a working Developer shell environment
+
+## Environment setup
+
+The most reliable local setup on Windows is to use the VS 2022 Build Tools developer shell. This repo includes a helper that finds a usable installation and loads the right `PATH`, `INCLUDE`, and `LIB` values for the current PowerShell session.
+
+From the repo root:
+
+```powershell
+. .\scripts\enter-vsdevshell.ps1
+cd app\src-tauri
+cargo test
+```
+
+If that script cannot find a usable toolchain, install or repair:
+
+- Visual Studio Build Tools 2022
+- Desktop development with C++
+- MSVC v143 x64/x86 build tools
+- Windows 10/11 SDK
+
+### Making sure build tools are in PATH
+
+The build uses the MSVC toolchain (`cl.exe`, Windows headers). Those are only available in a **Developer** environment. Use either:
+
+1. **Start menu** → open **“x64 Native Tools Command Prompt for VS 2022”** (or your VS version), then run the build commands in that terminal, or  
+2. **In a normal terminal**, run the VS dev script first, then build:
+   ```powershell
+   . .\scripts\enter-vsdevshell.ps1
+   cd app
+   npm run tauri build
+   ```
+   If VS is in a non-default path, pass `-PreferredInstallPath` to the helper script or use the “Developer PowerShell for VS” shortcut.
+
+## Validation
+
+Run both the frontend and backend checks:
+
+```powershell
+pwsh -File .\scripts\check.ps1
+```
+
+Run them separately:
+
+```powershell
+pwsh -File .\scripts\check.ps1 -Frontend
+pwsh -File .\scripts\check.ps1 -Backend
+```
+
+## Git hooks
+
+Install the repo-local pre-commit hook:
+
+```powershell
+pwsh -File .\scripts\install-git-hooks.ps1
+```
+
+The hook runs targeted checks based on staged files:
+
+- frontend changes under `app/` trigger `npm run build`
+- Rust changes under `app/src-tauri/` trigger `cargo test`
+- docs-only changes skip app checks
 
 ## Build & run
 
