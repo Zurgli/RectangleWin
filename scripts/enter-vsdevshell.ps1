@@ -19,7 +19,7 @@ function Test-VisualStudioToolchain {
         return $false
     }
 
-    $excptHeader = Get-ChildItem $msvcRoot -Recurse -Filter "excpt.h" -ErrorAction SilentlyContinue |
+    $excptHeader = Get-ChildItem -Path (Join-Path $msvcRoot "*\include\excpt.h") -ErrorAction SilentlyContinue |
         Select-Object -First 1
     return $null -ne $excptHeader
 }
@@ -46,7 +46,7 @@ if (Test-Path $vswhere) {
 }
 
 $resolvedInstallPath = $installCandidates |
-    Select-Object -Unique |
+    Sort-Object -Unique |
     Where-Object { Test-VisualStudioToolchain $_ } |
     Select-Object -First 1
 

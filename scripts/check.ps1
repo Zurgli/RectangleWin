@@ -8,6 +8,24 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Invoke-NativeOrThrow {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Command,
+        [string[]]$Arguments = @()
+    )
+
+    & $Command @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        $argText = if ($Arguments.Count -gt 0) {
+            " $($Arguments -join ' ')"
+        } else {
+            ""
+        }
+        throw "$Command$argText failed with exit code $LASTEXITCODE"
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $runFrontend = $Frontend.IsPresent
 $runBackend = $Backend.IsPresent
@@ -26,11 +44,11 @@ if ($runFrontend) {
     Push-Location (Join-Path $repoRoot "app")
     try {
         if ($Mode -eq "fast") {
-            npm run typecheck
+            Invoke-NativeOrThrow "npm" @("run", "typecheck")
         } else {
-            npm run build
+            Invoke-NativeOrThrow "npm" @("run", "build")
         }
-        npm run test
+        Invoke-NativeOrThrow "npm" @("run", "test")
     }
     finally {
         Pop-Location
@@ -42,7 +60,7 @@ if ($runBackend) {
     . (Join-Path $PSScriptRoot "enter-vsdevshell.ps1")
     Push-Location (Join-Path $repoRoot "app\src-tauri")
     try {
-        cargo test
+        Invoke-NativeOrThrow "cargo" @("test")
     }
     finally {
         Pop-Location
