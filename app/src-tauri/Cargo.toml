@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.2.0"
+version = "0.2.1"
 description = "RectangleWin - window snapping with keyboard shortcuts"
 authors = ["you"]
 edition = "2021"
@@ -32,4 +32,3 @@ windows = { version = "0.58", features = [
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_WindowsAndMessaging",
 ] } 
-
