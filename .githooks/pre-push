@@ -1,0 +1,2 @@
+#!/bin/sh
+exec pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$(dirname "$0")/../scripts/pre-push.ps1"

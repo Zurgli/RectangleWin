@@ -46,4 +46,4 @@ if ($runBackend) {
     $checkParams.Backend = $true
 }
 
-& (Join-Path $PSScriptRoot "check.ps1") @checkParams
+& (Join-Path $PSScriptRoot "check.ps1") -Mode fast @checkParams

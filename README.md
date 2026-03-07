@@ -60,6 +60,12 @@ Run both the frontend and backend checks:
 pwsh -File .\scripts\check.ps1
 ```
 
+Run the fast local variant used by `pre-commit`:
+
+```powershell
+pwsh -File .\scripts\check.ps1 -Mode fast
+```
+
 Run them separately:
 
 ```powershell
@@ -124,11 +130,19 @@ Install the repo-local pre-commit hook:
 pwsh -File .\scripts\install-git-hooks.ps1
 ```
 
-The hook runs targeted checks based on staged files:
+Installed hooks:
 
-- frontend changes under `app/` trigger `npm run build`
+- `pre-commit`
+- `pre-push`
+
+Hook behavior:
+
+- `pre-commit` runs targeted fast checks based on staged files
+- frontend changes under `app/` trigger `npm run typecheck` and `npm run test`
 - Rust changes under `app/src-tauri/` trigger `cargo test`
 - docs-only changes skip app checks
+- `pre-push` runs the full validation suite via `pwsh -File .\scripts\check.ps1`
+- coverage is not run from hooks; run it explicitly when needed
 
 ## Build & run
 

@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [switch]$Frontend,
-    [switch]$Backend
+    [switch]$Backend,
+    [ValidateSet("fast", "full")]
+    [string]$Mode = "full"
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,10 +18,19 @@ if (-not $runFrontend -and -not $runBackend) {
 }
 
 if ($runFrontend) {
-    Write-Host "Running frontend build check..."
+    if ($Mode -eq "fast") {
+        Write-Host "Running frontend typecheck..."
+    } else {
+        Write-Host "Running frontend build check..."
+    }
     Push-Location (Join-Path $repoRoot "app")
     try {
-        npm run build
+        if ($Mode -eq "fast") {
+            npm run typecheck
+        } else {
+            npm run build
+        }
+        npm run test
     }
     finally {
         Pop-Location
