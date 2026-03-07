@@ -154,3 +154,62 @@ pub fn try_parse_shortcut(shortcut: &str) -> Option<(u32, u32)> {
     modifiers |= MOD_NOREPEAT;
     Some((modifiers, vk))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        format_shortcut, try_parse_shortcut, vk_to_key_name, MOD_ALT, MOD_CONTROL, MOD_NOREPEAT,
+        MOD_SHIFT, MOD_WIN,
+    };
+
+    #[test]
+    fn vk_to_key_name_covers_known_and_unknown_keys() {
+        assert_eq!(vk_to_key_name(0x25), "Left");
+        assert_eq!(vk_to_key_name(0x41), "A");
+        assert_eq!(vk_to_key_name(0x99), "0x99");
+    }
+
+    #[test]
+    fn format_shortcut_uses_expected_modifier_order() {
+        assert_eq!(
+            format_shortcut(MOD_WIN | MOD_ALT | MOD_CONTROL | MOD_SHIFT, 0x25),
+            "Win+Alt+Ctrl+Shift+Left"
+        );
+        assert_eq!(format_shortcut(0, 0x41), "A");
+    }
+
+    #[test]
+    fn try_parse_shortcut_parses_case_and_spacing() {
+        assert_eq!(
+            try_parse_shortcut(" Win + Alt + left "),
+            Some((MOD_WIN | MOD_ALT | MOD_NOREPEAT, 0x25))
+        );
+        assert_eq!(
+            try_parse_shortcut("ctrl+shift+a"),
+            Some((MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x41))
+        );
+        assert_eq!(try_parse_shortcut("5"), Some((MOD_NOREPEAT, 0x35)));
+    }
+
+    #[test]
+    fn try_parse_shortcut_rejects_invalid_inputs() {
+        assert_eq!(try_parse_shortcut(""), None);
+        assert_eq!(try_parse_shortcut("Win+"), None);
+        assert_eq!(try_parse_shortcut("Hyper+Left"), None);
+        assert_eq!(try_parse_shortcut("Win+Alt+Space"), None);
+    }
+
+    #[test]
+    fn format_and_parse_round_trip_for_supported_shortcuts() {
+        let shortcuts = [
+            (MOD_WIN | MOD_ALT | MOD_NOREPEAT, 0x25),
+            (MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x0D),
+            (MOD_ALT | MOD_NOREPEAT, 0x52),
+        ];
+
+        for (mods, vk) in shortcuts {
+            let formatted = format_shortcut(mods, vk);
+            assert_eq!(try_parse_shortcut(&formatted), Some((mods, vk)));
+        }
+    }
+}

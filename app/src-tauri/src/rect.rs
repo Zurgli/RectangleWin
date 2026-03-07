@@ -85,3 +85,79 @@ impl From<EngineRect> for Rect {
         r.to_rect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{EngineRect, Rect};
+
+    #[test]
+    fn rect_dimensions_and_empty_state_are_reported_correctly() {
+        let rect = Rect {
+            left: 10,
+            top: 15,
+            right: 50,
+            bottom: 65,
+        };
+        assert_eq!(rect.width(), 40);
+        assert_eq!(rect.height(), 50);
+        assert!(!rect.is_empty());
+        assert!(Rect::default().is_empty());
+    }
+
+    #[test]
+    fn rect_tolerance_check_respects_threshold() {
+        let a = Rect {
+            left: 10,
+            top: 10,
+            right: 100,
+            bottom: 100,
+        };
+        let b = Rect {
+            left: 12,
+            top: 9,
+            right: 103,
+            bottom: 98,
+        };
+
+        assert!(a.approximately_equals(&b, 3));
+        assert!(!a.approximately_equals(&b, 1));
+    }
+
+    #[test]
+    fn engine_rect_dimensions_and_empty_state_are_reported_correctly() {
+        let rect = EngineRect {
+            left: 5,
+            top: 7,
+            right: 25,
+            bottom: 31,
+        };
+        assert_eq!(rect.width(), 20);
+        assert_eq!(rect.height(), 24);
+        assert!(!rect.is_empty());
+        assert!(EngineRect::default().is_empty());
+    }
+
+    #[test]
+    fn rect_conversions_round_trip() {
+        let rect = Rect {
+            left: 1,
+            top: 2,
+            right: 30,
+            bottom: 40,
+        };
+
+        let engine = EngineRect::from_rect(&rect);
+        assert_eq!(
+            engine,
+            EngineRect {
+                left: 1,
+                top: 2,
+                right: 30,
+                bottom: 40,
+            }
+        );
+        assert_eq!(engine.to_rect(), rect);
+        assert_eq!(EngineRect::from(rect), engine);
+        assert_eq!(Rect::from(engine), rect);
+    }
+}

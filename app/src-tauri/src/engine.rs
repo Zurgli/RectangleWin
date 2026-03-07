@@ -275,3 +275,193 @@ pub fn apply_gaps(rect: EngineRect, gap_size: f32) -> EngineRect {
         bottom: rect.bottom - g,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        apply_gaps, calculate, section_ratios, CalculationParams, WindowAction,
+    };
+    use crate::rect::EngineRect;
+
+    fn params(action: WindowAction, thirds_layout_mode: &str) -> CalculationParams {
+        CalculationParams {
+            window_rect: EngineRect {
+                left: 10,
+                top: 20,
+                right: 30,
+                bottom: 40,
+            },
+            work_area: EngineRect {
+                left: 0,
+                top: 0,
+                right: 100,
+                bottom: 90,
+            },
+            action,
+            last_action: None,
+            thirds_layout_mode: thirds_layout_mode.into(),
+        }
+    }
+
+    #[test]
+    fn window_action_string_conversions_cover_known_actions() {
+        let actions = [
+            ("LeftHalf", WindowAction::LeftHalf),
+            ("RightHalf", WindowAction::RightHalf),
+            ("TopHalf", WindowAction::TopHalf),
+            ("BottomHalf", WindowAction::BottomHalf),
+            ("Maximize", WindowAction::Maximize),
+            ("Center", WindowAction::Center),
+            ("Undo", WindowAction::Undo),
+            ("Restore", WindowAction::Undo),
+            ("LowerLeft", WindowAction::LowerLeft),
+            ("LowerRight", WindowAction::LowerRight),
+            ("UpperLeft", WindowAction::UpperLeft),
+            ("UpperRight", WindowAction::UpperRight),
+            ("NextDisplay", WindowAction::NextDisplay),
+            ("PreviousDisplay", WindowAction::PreviousDisplay),
+            ("FirstThird", WindowAction::FirstThird),
+            ("FirstTwoThirds", WindowAction::FirstTwoThirds),
+            ("CenterThird", WindowAction::CenterThird),
+            ("LastTwoThirds", WindowAction::LastTwoThirds),
+            ("LastThird", WindowAction::LastThird),
+        ];
+
+        for (name, action) in actions {
+            assert_eq!(WindowAction::from_str(name), Some(action));
+            if name != "Restore" {
+                assert_eq!(action.name(), name);
+            }
+        }
+
+        assert_eq!(WindowAction::from_str("MissingAction"), None);
+    }
+
+    #[test]
+    fn action_categories_match_expected_behavior() {
+        assert!(WindowAction::LeftHalf.has_calculation());
+        assert!(WindowAction::CenterThird.has_calculation());
+        assert!(!WindowAction::Undo.has_calculation());
+        assert!(!WindowAction::NextDisplay.has_calculation());
+        assert!(!WindowAction::PreviousDisplay.has_calculation());
+
+        assert!(WindowAction::FirstThird.is_section_action());
+        assert!(WindowAction::CenterThird.is_section_action());
+        assert!(WindowAction::LastThird.is_section_action());
+        assert!(!WindowAction::LeftHalf.is_section_action());
+        assert!(!WindowAction::Undo.is_section_action());
+    }
+
+    #[test]
+    fn section_ratios_normalize_layout_modes() {
+        assert_eq!(section_ratios("Thirds"), (1, 1, 1));
+        assert_eq!(section_ratios("Fourths"), (1, 2, 1));
+        assert_eq!(section_ratios("Fifths"), (1, 3, 1));
+        assert_eq!(section_ratios("unknown"), (1, 1, 1));
+    }
+
+    #[test]
+    fn calculate_returns_expected_rects_for_core_actions() {
+        let left = calculate(&params(WindowAction::LeftHalf, "Thirds")).unwrap();
+        assert_eq!(
+            left.rect,
+            EngineRect {
+                left: 0,
+                top: 0,
+                right: 50,
+                bottom: 90,
+            }
+        );
+        assert_eq!(left.resulting_action, WindowAction::LeftHalf);
+
+        let center = calculate(&params(WindowAction::Center, "Thirds")).unwrap();
+        assert_eq!(
+            center.rect,
+            EngineRect {
+                left: 40,
+                top: 35,
+                right: 60,
+                bottom: 55,
+            }
+        );
+
+        let maximize = calculate(&params(WindowAction::Maximize, "Thirds")).unwrap();
+        assert_eq!(
+            maximize.rect,
+            EngineRect {
+                left: 0,
+                top: 0,
+                right: 100,
+                bottom: 90,
+            }
+        );
+    }
+
+    #[test]
+    fn calculate_uses_section_layout_ratios() {
+        let first = calculate(&params(WindowAction::FirstThird, "Fifths")).unwrap();
+        assert_eq!(first.rect.right, 20);
+
+        let first_two = calculate(&params(WindowAction::FirstTwoThirds, "Fifths")).unwrap();
+        assert_eq!(first_two.rect.right, 80);
+
+        let center = calculate(&params(WindowAction::CenterThird, "Fifths")).unwrap();
+        assert_eq!(
+            center.rect,
+            EngineRect {
+                left: 20,
+                top: 0,
+                right: 80,
+                bottom: 90,
+            }
+        );
+
+        let last = calculate(&params(WindowAction::LastThird, "Fifths")).unwrap();
+        assert_eq!(
+            last.rect,
+            EngineRect {
+                left: 80,
+                top: 0,
+                right: 100,
+                bottom: 90,
+            }
+        );
+    }
+
+    #[test]
+    fn calculate_returns_none_for_non_calculated_actions() {
+        assert!(calculate(&params(WindowAction::Undo, "Thirds")).is_none());
+        assert!(calculate(&params(WindowAction::NextDisplay, "Thirds")).is_none());
+        assert!(calculate(&params(WindowAction::PreviousDisplay, "Thirds")).is_none());
+    }
+
+    #[test]
+    fn apply_gaps_supports_positive_negative_and_zero_values() {
+        let rect = EngineRect {
+            left: 0,
+            top: 0,
+            right: 100,
+            bottom: 100,
+        };
+
+        assert_eq!(apply_gaps(rect, 0.0), rect);
+        assert_eq!(
+            apply_gaps(rect, 4.0),
+            EngineRect {
+                left: 4,
+                top: 4,
+                right: 96,
+                bottom: 96,
+            }
+        );
+        assert_eq!(
+            apply_gaps(rect, -2.0),
+            EngineRect {
+                left: -2,
+                top: -2,
+                right: 102,
+                bottom: 102,
+            }
+        );
+    }
+}
