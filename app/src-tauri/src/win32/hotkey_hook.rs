@@ -4,9 +4,9 @@
 use crate::config::HotkeyBinding;
 use crate::shortcut;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::Emitter;
 use std::sync::Mutex;
 use std::thread;
+use tauri::Emitter;
 use windows::core::w;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::Com::CoInitializeEx;
@@ -14,19 +14,18 @@ use windows::Win32::System::Com::COINIT_APARTMENTTHREADED;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW,
-    RegisterClassW, SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx,
-    HC_ACTION, KBDLLHOOKSTRUCT, LLKHF_UP, WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN,
-    WNDCLASSW, WS_EX_TOOLWINDOW, WS_OVERLAPPED,
+    CallNextHookEx, CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, RegisterClassW,
+    SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, HC_ACTION, KBDLLHOOKSTRUCT, LLKHF_UP,
+    WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN, WNDCLASSW, WS_EX_TOOLWINDOW, WS_OVERLAPPED,
 };
 
 const MOD_MASK: u32 = 0x000F; // MOD_ALT | MOD_CONTROL | MOD_SHIFT | MOD_WIN
 const VK_LWIN: u32 = 0x5B;
 const VK_RWIN: u32 = 0x5C;
 const VK_CONTROL: u32 = 0x11;
-const VK_MENU: u32 = 0x12;   // generic Alt
+const VK_MENU: u32 = 0x12; // generic Alt
 const VK_SHIFT: u32 = 0x10;
-const VK_LMENU: u32 = 0xA4;  // left Alt (hook can receive these instead of VK_MENU)
+const VK_LMENU: u32 = 0xA4; // left Alt (hook can receive these instead of VK_MENU)
 const VK_RMENU: u32 = 0xA5;
 const VK_LCONTROL: u32 = 0xA2;
 const VK_RCONTROL: u32 = 0xA3;
@@ -53,13 +52,24 @@ struct HookState {
     last_triggered: Option<(u32, u32)>, // (modifiers, vk) to avoid repeat
 }
 
+fn should_consume_hotkey(matched_action: bool, hwnd_raw: Option<usize>) -> bool {
+    matched_action && hwnd_raw.is_some()
+}
+
 fn is_modifier_key(vk: u32) -> bool {
     matches!(
         vk,
-        VK_LWIN | VK_RWIN
-            | VK_CONTROL | VK_LCONTROL | VK_RCONTROL
-            | VK_MENU | VK_LMENU | VK_RMENU
-            | VK_SHIFT | VK_LSHIFT | VK_RSHIFT
+        VK_LWIN
+            | VK_RWIN
+            | VK_CONTROL
+            | VK_LCONTROL
+            | VK_RCONTROL
+            | VK_MENU
+            | VK_LMENU
+            | VK_RMENU
+            | VK_SHIFT
+            | VK_LSHIFT
+            | VK_RSHIFT
     )
 }
 
@@ -167,9 +177,13 @@ unsafe extern "system" fn low_level_keyboard_proc(
     }
 
     if let Some(name) = action_to_run {
+        let hwnd_raw = crate::win32::get_foreground_window().map(|h| h.0 as usize);
+        if !should_consume_hotkey(true, hwnd_raw) {
+            return CallNextHookEx(None, code, wparam, lparam);
+        }
+
         if let Ok(guard) = HOOK_TRIGGER.lock() {
             if let Some(trigger) = guard.as_ref() {
-                let hwnd_raw = crate::win32::get_foreground_window().map(|h| h.0 as usize);
                 trigger(name, hwnd_raw);
             }
         }
@@ -244,13 +258,9 @@ pub fn start(
             .expect("CreateWindowExW hook window");
 
             // Pass module handle like C# (GetHINSTANCE(Module)); NULL can fail in some loaders
-            let hook = SetWindowsHookExW(
-                WH_KEYBOARD_LL,
-                Some(low_level_keyboard_proc),
-                hinstance,
-                0,
-            )
-            .expect("SetWindowsHookExW WH_KEYBOARD_LL");
+            let hook =
+                SetWindowsHookExW(WH_KEYBOARD_LL, Some(low_level_keyboard_proc), hinstance, 0)
+                    .expect("SetWindowsHookExW WH_KEYBOARD_LL");
 
             let mut msg = std::mem::zeroed();
             while GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
@@ -276,5 +286,17 @@ pub fn set_hotkeys(hotkeys: Vec<HotkeyBinding>) {
             s.hotkeys = bindings;
             s.last_triggered = None;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_consume_hotkey;
+
+    #[test]
+    fn consumes_only_when_a_real_target_window_exists() {
+        assert!(!should_consume_hotkey(false, Some(123)));
+        assert!(!should_consume_hotkey(true, None));
+        assert!(should_consume_hotkey(true, Some(123)));
     }
 }

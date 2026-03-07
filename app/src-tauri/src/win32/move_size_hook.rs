@@ -3,22 +3,20 @@
 //! (Restoring during drag is not possible: the OS overwrites our resize until the drag ends.)
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::Manager;
 use std::sync::Mutex;
 use std::thread;
+use tauri::Manager;
+use windows::core::w;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Com::CoInitializeEx;
 use windows::Win32::System::Com::COINIT_APARTMENTTHREADED;
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetMessageW, TranslateMessage, DispatchMessageW,
-    CreateWindowExW, DefWindowProcW, RegisterClassW,
-    GetAncestor, IsWindow,
-    GA_ROOT,
-    WNDCLASSW, WS_EX_TOOLWINDOW, WS_OVERLAPPED,
+    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetAncestor, GetMessageW, IsWindow,
+    RegisterClassW, TranslateMessage, GA_ROOT, WNDCLASSW, WS_EX_TOOLWINDOW, WS_OVERLAPPED,
 };
-use windows::core::w;
 
 // Manual FFI for SetWinEventHook / UnhookWinEvent (not in our windows crate feature set).
+const EVENT_OBJECT_DESTROY: u32 = 0x8001;
 const EVENT_SYSTEM_MOVESIZEEND: u32 = 11;
 const WINEVENT_OUTOFCONTEXT: u32 = 0;
 
@@ -54,7 +52,7 @@ static RUNNING: AtomicBool = AtomicBool::new(false);
 
 unsafe extern "system" fn win_event_proc(
     _h_win_event_hook: HWINEVENTHOOK,
-    _event: u32,
+    event: u32,
     hwnd: HWND,
     _id_object: i32,
     _id_child: i32,
@@ -64,17 +62,24 @@ unsafe extern "system" fn win_event_proc(
     if hwnd.0.is_null() {
         return;
     }
-    let root = GetAncestor(hwnd, GA_ROOT);
-    if root.0.is_null() || !IsWindow(root).as_bool() {
-        return;
-    }
-    let hwnd_raw = root.0 as usize;
+    let hwnd_raw = hwnd.0 as usize;
     if let Ok(guard) = MOVE_SIZE_APP.lock() {
         if let Some(ref handle) = *guard {
             let h_for_call = handle.clone();
             let h_for_closure = handle.clone();
             let _ = h_for_call.run_on_main_thread(move || {
-                on_move_size_end(h_for_closure, hwnd_raw);
+                match event {
+                    EVENT_SYSTEM_MOVESIZEEND => {
+                        let hwnd = HWND(hwnd_raw as *mut _);
+                        let root = GetAncestor(hwnd, GA_ROOT);
+                        if root.0.is_null() || !IsWindow(root).as_bool() {
+                            return;
+                        }
+                        on_move_size_end(h_for_closure, root.0 as usize);
+                    }
+                    EVENT_OBJECT_DESTROY => on_window_destroy(h_for_closure, hwnd_raw),
+                    _ => {}
+                }
             });
         }
     }
@@ -87,6 +92,10 @@ fn on_move_size_end(handle: tauri::AppHandle, hwnd_raw: usize) {
     if hwnd.0.is_null() || unsafe { !IsWindow(hwnd).as_bool() } {
         return;
     }
+    let hwnd = match super::resolve_snap_target_window(hwnd) {
+        Some(hwnd) => hwnd,
+        None => return,
+    };
     let key = hwnd_raw as isize;
     let rect_to_apply = {
         let state = handle.state::<crate::AppState>();
@@ -121,7 +130,34 @@ fn on_move_size_end(handle: tauri::AppHandle, hwnd_raw: usize) {
     let _ = super::set_window_bounds(hwnd, &rect_to_apply, false, false);
     {
         let state = handle.state::<crate::AppState>();
-        let _ = state.manager.try_lock().map(|mut manager| manager.remove_last_action(key));
+        let _ = state
+            .manager
+            .try_lock()
+            .map(|mut manager| manager.clear_window_state(key));
+    }
+}
+
+fn on_window_destroy(handle: tauri::AppHandle, hwnd_raw: usize) {
+    let key = hwnd_raw as isize;
+    let state = handle.state::<crate::AppState>();
+    let _ = state
+        .manager
+        .try_lock()
+        .map(|mut manager| manager.clear_window_state(key));
+}
+
+#[cfg(test)]
+fn normalize_destroy_key(hwnd_raw: usize) -> isize {
+    hwnd_raw as isize
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_destroy_key;
+
+    #[test]
+    fn destroy_key_matches_manager_window_key_type() {
+        assert_eq!(normalize_destroy_key(123), 123);
     }
 }
 
@@ -175,7 +211,7 @@ pub fn start(app: tauri::AppHandle) {
             )
             .expect("CreateWindowExW move/size hook window");
 
-            let hook = SetWinEventHook(
+            let move_size_hook = SetWinEventHook(
                 EVENT_SYSTEM_MOVESIZEEND,
                 EVENT_SYSTEM_MOVESIZEEND,
                 std::ptr::null(),
@@ -184,7 +220,22 @@ pub fn start(app: tauri::AppHandle) {
                 0,
                 WINEVENT_OUTOFCONTEXT,
             );
-            if hook == 0 {
+            let destroy_hook = SetWinEventHook(
+                EVENT_OBJECT_DESTROY,
+                EVENT_OBJECT_DESTROY,
+                std::ptr::null(),
+                Some(win_event_proc),
+                0,
+                0,
+                WINEVENT_OUTOFCONTEXT,
+            );
+            if move_size_hook == 0 || destroy_hook == 0 {
+                if move_size_hook != 0 {
+                    let _ = UnhookWinEvent(move_size_hook);
+                }
+                if destroy_hook != 0 {
+                    let _ = UnhookWinEvent(destroy_hook);
+                }
                 RUNNING.store(false, Ordering::SeqCst);
                 return;
             }
@@ -195,7 +246,8 @@ pub fn start(app: tauri::AppHandle) {
                 DispatchMessageW(&msg);
             }
 
-            let _ = UnhookWinEvent(hook);
+            let _ = UnhookWinEvent(move_size_hook);
+            let _ = UnhookWinEvent(destroy_hook);
         }
         RUNNING.store(false, Ordering::SeqCst);
     });

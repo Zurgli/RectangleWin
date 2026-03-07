@@ -259,6 +259,19 @@ impl WindowManager {
         self.last_actions.remove(&key);
     }
 
+    /// Remove all tracked state for a window. Required because HWND values can be reused.
+    pub fn clear_window_state(&mut self, key: isize) {
+        self.restore_rects.remove(&key);
+        self.last_actions.remove(&key);
+        if self
+            .section_cycle_session
+            .map(|session| session.window_key == key)
+            .unwrap_or(false)
+        {
+            self.section_cycle_session = None;
+        }
+    }
+
     /// Execute action on foreground window (or None to use foreground). Returns true if applied.
     pub fn execute(
         &mut self,
