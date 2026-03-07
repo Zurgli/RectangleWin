@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2 - 2026-03-07
+
+- Fixed shell hook handling so Start menu and other shell UI are no longer affected by stale snap state or invalid foreground targets.
+- Cleared tracked snap state when windows are destroyed to prevent HWND reuse from affecting unrelated windows.
+- Tightened the keyboard hook so snap hotkeys are only consumed when a real target window exists.
+
 ## 0.2.1 - 2026-03-07
 
 - Fixed window targeting so snap actions ignore shell UI like the Start menu, tray popups, and tool windows.
