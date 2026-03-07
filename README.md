@@ -67,6 +67,39 @@ pwsh -File .\scripts\check.ps1 -Frontend
 pwsh -File .\scripts\check.ps1 -Backend
 ```
 
+## Coverage
+
+Backend coverage uses `cargo-llvm-cov` and the same VS developer-shell bootstrap as the test workflow.
+
+One-time prerequisites:
+
+```powershell
+rustup component add llvm-tools-preview
+cargo install cargo-llvm-cov
+```
+
+Or let the helper install them:
+
+```powershell
+pwsh -File .\scripts\coverage.ps1 -InstallPrereqs
+```
+
+Generate an HTML report:
+
+```powershell
+pwsh -File .\scripts\coverage.ps1
+```
+
+The report is written to `app/src-tauri/target/llvm-cov-html/html/index.html`.
+
+Generate LCOV output instead:
+
+```powershell
+pwsh -File .\scripts\coverage.ps1 -Lcov
+```
+
+The LCOV file is written to `app/src-tauri/target/llvm-cov.info`.
+
 ## Git hooks
 
 Install the repo-local pre-commit hook:
