@@ -6,15 +6,17 @@ use crate::config::Config;
 #[cfg(windows)]
 use crate::engine::{self, apply_gaps, calculate, CalculationParams, WindowAction};
 #[cfg(windows)]
-use crate::rect::{Rect, EngineRect};
+use crate::rect::{EngineRect, Rect};
 #[cfg(windows)]
 use crate::win32::{
-    enum_monitors, get_foreground_window, get_monitor_from_point, get_monitor_from_window,
-    get_process_image_name, get_cursor_pos, set_cursor_pos, set_foreground_window,
+    enum_monitors, get_cursor_pos, get_foreground_window, get_monitor_from_point,
+    get_monitor_from_window, get_process_image_name, set_cursor_pos, set_foreground_window,
     set_window_bounds, try_get_monitor_info, try_get_window_bounds,
 };
 #[cfg(windows)]
 use std::collections::HashMap;
+#[cfg(windows)]
+use std::time::{Duration, Instant};
 
 /// Options for Execute (from config).
 #[derive(Clone, Debug)]
@@ -162,6 +164,8 @@ fn get_current_and_adjacent_work_areas(
 
 /// Cycle order for repeat section hotkey: Fourths -> Fifths -> Thirds -> Fourths.
 const SECTION_LAYOUT_CYCLE: &[&str] = &["Fourths", "Fifths", "Thirds"];
+#[cfg(windows)]
+const SECTION_CYCLE_RESET_TIMEOUT: Duration = Duration::from_millis(1500);
 
 fn section_layout_cycle_index(layout: &str) -> usize {
     if layout.eq_ignore_ascii_case("Fifths") {
@@ -174,12 +178,60 @@ fn section_layout_cycle_index(layout: &str) -> usize {
 }
 
 #[cfg(windows)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SectionCycleSession {
+    window_key: isize,
+    action: WindowAction,
+    next_layout_index: usize,
+    last_triggered_at: Instant,
+}
+
+#[cfg(windows)]
+fn resolve_section_layout_mode(
+    session: Option<SectionCycleSession>,
+    window_key: isize,
+    action: WindowAction,
+    configured_layout: &str,
+    now: Instant,
+) -> (String, Option<SectionCycleSession>) {
+    if !action.is_section_action() {
+        return (configured_layout.to_string(), None);
+    }
+
+    if let Some(existing) = session {
+        if existing.window_key == window_key
+            && existing.action == action
+            && matches!(
+                now.checked_duration_since(existing.last_triggered_at),
+                Some(elapsed) if elapsed <= SECTION_CYCLE_RESET_TIMEOUT
+            )
+        {
+            let layout = SECTION_LAYOUT_CYCLE[existing.next_layout_index].to_string();
+            let next_session = SectionCycleSession {
+                next_layout_index: (existing.next_layout_index + 1) % SECTION_LAYOUT_CYCLE.len(),
+                last_triggered_at: now,
+                ..existing
+            };
+            return (layout, Some(next_session));
+        }
+    }
+
+    let next_layout_index =
+        (section_layout_cycle_index(configured_layout) + 1) % SECTION_LAYOUT_CYCLE.len();
+    let next_session = SectionCycleSession {
+        window_key,
+        action,
+        next_layout_index,
+        last_triggered_at: now,
+    };
+    (configured_layout.to_string(), Some(next_session))
+}
+
+#[cfg(windows)]
 pub struct WindowManager {
     restore_rects: HashMap<isize, Rect>,
     last_actions: HashMap<isize, (WindowAction, Rect)>,
-    /// When the same section hotkey is pressed again, we cycle layout (Fourths -> Fifths -> Thirds -> Fourths).
-    last_section_action: Option<WindowAction>,
-    section_cycle_index: usize,
+    section_cycle_session: Option<SectionCycleSession>,
 }
 
 #[cfg(windows)]
@@ -188,8 +240,7 @@ impl WindowManager {
         Self {
             restore_rects: HashMap::new(),
             last_actions: HashMap::new(),
-            last_section_action: None,
-            section_cycle_index: 0,
+            section_cycle_session: None,
         }
     }
 
@@ -235,6 +286,7 @@ impl WindowManager {
         }
 
         if action == WindowAction::Undo {
+            self.section_cycle_session = None;
             let restore = match self.restore_rects.get(&key) {
                 Some(r) => *r,
                 None => return false,
@@ -247,6 +299,7 @@ impl WindowManager {
         }
 
         if action == WindowAction::NextDisplay || action == WindowAction::PreviousDisplay {
+            self.section_cycle_session = None;
             let current_rect = match try_get_window_bounds(hwnd, false) {
                 Some(r) => r,
                 None => return false,
@@ -309,23 +362,14 @@ impl WindowManager {
                 action: *a,
             });
 
-        let thirds_layout_mode = if action.is_section_action() {
-            if self.last_section_action == Some(action) {
-                let layout = SECTION_LAYOUT_CYCLE[self.section_cycle_index].to_string();
-                self.section_cycle_index =
-                    (self.section_cycle_index + 1) % SECTION_LAYOUT_CYCLE.len();
-                layout
-            } else {
-                self.last_section_action = Some(action);
-                let config_layout = options.thirds_layout_mode.clone();
-                self.section_cycle_index =
-                    (section_layout_cycle_index(&config_layout) + 1) % SECTION_LAYOUT_CYCLE.len();
-                config_layout
-            }
-        } else {
-            self.last_section_action = None;
-            options.thirds_layout_mode.clone()
-        };
+        let (thirds_layout_mode, next_section_cycle_session) = resolve_section_layout_mode(
+            self.section_cycle_session,
+            key,
+            action,
+            &options.thirds_layout_mode,
+            Instant::now(),
+        );
+        self.section_cycle_session = next_section_cycle_session;
 
         let params = CalculationParams {
             window_rect: EngineRect::from_rect(&window_rect),
@@ -357,8 +401,7 @@ impl WindowManager {
         }
 
         let target: Rect = target_rect.into();
-        let applied =
-            set_window_bounds(hwnd, &target, false, true);
+        let applied = set_window_bounds(hwnd, &target, false, true);
         if applied {
             self.last_actions
                 .insert(key, (result.resulting_action, target));
@@ -388,5 +431,224 @@ impl WindowManager {
         _options: &ExecuteOptions,
     ) -> bool {
         false
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::{
+        resolve_section_layout_mode, section_layout_cycle_index, SectionCycleSession,
+        SECTION_CYCLE_RESET_TIMEOUT, SECTION_LAYOUT_CYCLE,
+    };
+    use crate::engine::WindowAction;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn first_section_action_uses_configured_layout_and_seeds_next_layout() {
+        let now = Instant::now();
+        let (layout, session) =
+            resolve_section_layout_mode(None, 1, WindowAction::FirstThird, "Thirds", now);
+
+        assert_eq!(layout, "Thirds");
+        assert_eq!(
+            session,
+            Some(SectionCycleSession {
+                window_key: 1,
+                action: WindowAction::FirstThird,
+                next_layout_index: 0,
+                last_triggered_at: now,
+            })
+        );
+    }
+
+    #[test]
+    fn repeated_same_action_same_window_cycles_within_timeout() {
+        let now = Instant::now();
+        let session = Some(SectionCycleSession {
+            window_key: 1,
+            action: WindowAction::FirstThird,
+            next_layout_index: 0,
+            last_triggered_at: now,
+        });
+
+        let (layout, next_session) = resolve_section_layout_mode(
+            session,
+            1,
+            WindowAction::FirstThird,
+            "Thirds",
+            now + Duration::from_millis(250),
+        );
+
+        assert_eq!(layout, "Fourths");
+        assert_eq!(
+            next_session,
+            Some(SectionCycleSession {
+                window_key: 1,
+                action: WindowAction::FirstThird,
+                next_layout_index: 1,
+                last_triggered_at: now + Duration::from_millis(250),
+            })
+        );
+    }
+
+    #[test]
+    fn repeat_after_timeout_resets_to_configured_layout() {
+        let now = Instant::now();
+        let session = Some(SectionCycleSession {
+            window_key: 1,
+            action: WindowAction::FirstThird,
+            next_layout_index: 1,
+            last_triggered_at: now,
+        });
+
+        let (layout, next_session) = resolve_section_layout_mode(
+            session,
+            1,
+            WindowAction::FirstThird,
+            "Thirds",
+            now + SECTION_CYCLE_RESET_TIMEOUT + Duration::from_millis(1),
+        );
+
+        assert_eq!(layout, "Thirds");
+        assert_eq!(
+            next_session,
+            Some(SectionCycleSession {
+                window_key: 1,
+                action: WindowAction::FirstThird,
+                next_layout_index: 0,
+                last_triggered_at: now + SECTION_CYCLE_RESET_TIMEOUT + Duration::from_millis(1),
+            })
+        );
+    }
+
+    #[test]
+    fn different_window_resets_to_configured_layout() {
+        let now = Instant::now();
+        let session = Some(SectionCycleSession {
+            window_key: 1,
+            action: WindowAction::FirstThird,
+            next_layout_index: 2,
+            last_triggered_at: now,
+        });
+
+        let (layout, next_session) = resolve_section_layout_mode(
+            session,
+            2,
+            WindowAction::FirstThird,
+            "Fourths",
+            now + Duration::from_millis(100),
+        );
+
+        assert_eq!(layout, "Fourths");
+        assert_eq!(
+            next_session,
+            Some(SectionCycleSession {
+                window_key: 2,
+                action: WindowAction::FirstThird,
+                next_layout_index: 1,
+                last_triggered_at: now + Duration::from_millis(100),
+            })
+        );
+    }
+
+    #[test]
+    fn different_section_action_resets_to_configured_layout() {
+        let now = Instant::now();
+        let session = Some(SectionCycleSession {
+            window_key: 1,
+            action: WindowAction::FirstThird,
+            next_layout_index: 2,
+            last_triggered_at: now,
+        });
+
+        let (layout, next_session) = resolve_section_layout_mode(
+            session,
+            1,
+            WindowAction::CenterThird,
+            "Fifths",
+            now + Duration::from_millis(100),
+        );
+
+        assert_eq!(layout, "Fifths");
+        assert_eq!(
+            next_session,
+            Some(SectionCycleSession {
+                window_key: 1,
+                action: WindowAction::CenterThird,
+                next_layout_index: 2,
+                last_triggered_at: now + Duration::from_millis(100),
+            })
+        );
+    }
+
+    #[test]
+    fn non_section_action_clears_active_session() {
+        let now = Instant::now();
+        let session = Some(SectionCycleSession {
+            window_key: 1,
+            action: WindowAction::FirstThird,
+            next_layout_index: 0,
+            last_triggered_at: now,
+        });
+
+        let (layout, next_session) = resolve_section_layout_mode(
+            session,
+            1,
+            WindowAction::LeftHalf,
+            "Thirds",
+            now + Duration::from_millis(100),
+        );
+
+        assert_eq!(layout, "Thirds");
+        assert_eq!(next_session, None);
+    }
+
+    #[test]
+    fn timeout_boundary_includes_exact_timeout_only() {
+        let now = Instant::now();
+        let session = Some(SectionCycleSession {
+            window_key: 1,
+            action: WindowAction::FirstThird,
+            next_layout_index: 1,
+            last_triggered_at: now,
+        });
+
+        let (exact_layout, exact_session) = resolve_section_layout_mode(
+            session,
+            1,
+            WindowAction::FirstThird,
+            "Thirds",
+            now + SECTION_CYCLE_RESET_TIMEOUT,
+        );
+        assert_eq!(exact_layout, SECTION_LAYOUT_CYCLE[1]);
+        let exact_session = exact_session.unwrap();
+        assert_eq!(exact_session.next_layout_index, 2);
+
+        let (late_layout, late_session) = resolve_section_layout_mode(
+            Some(exact_session),
+            1,
+            WindowAction::FirstThird,
+            "Thirds",
+            exact_session.last_triggered_at
+                + SECTION_CYCLE_RESET_TIMEOUT
+                + Duration::from_millis(1),
+        );
+        assert_eq!(late_layout, "Thirds");
+        assert_eq!(late_session.unwrap().next_layout_index, 0);
+    }
+
+    #[test]
+    fn configured_starting_modes_seed_expected_next_layout() {
+        let now = Instant::now();
+
+        for layout in ["Thirds", "Fourths", "Fifths"] {
+            let (resolved_layout, session) =
+                resolve_section_layout_mode(None, 1, WindowAction::LastThird, layout, now);
+            assert_eq!(resolved_layout, layout);
+            assert_eq!(
+                session.unwrap().next_layout_index,
+                (section_layout_cycle_index(layout) + 1) % SECTION_LAYOUT_CYCLE.len()
+            );
+        }
     }
 }
