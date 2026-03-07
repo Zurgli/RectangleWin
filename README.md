@@ -67,6 +67,13 @@ pwsh -File .\scripts\check.ps1 -Frontend
 pwsh -File .\scripts\check.ps1 -Backend
 ```
 
+Frontend unit tests:
+
+```powershell
+cd app
+npm run test
+```
+
 ## Coverage
 
 Backend coverage uses `cargo-llvm-cov` and the same VS developer-shell bootstrap as the test workflow.
@@ -99,6 +106,15 @@ pwsh -File .\scripts\coverage.ps1 -Lcov
 ```
 
 The LCOV file is written to `app/src-tauri/target/llvm-cov.info`.
+
+Frontend coverage:
+
+```powershell
+cd app
+npm run coverage
+```
+
+The frontend HTML report is written to `app/coverage/index.html`.
 
 ## Git hooks
 
