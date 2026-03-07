@@ -18,6 +18,7 @@
         "minWidth": 500,
         "center": true,
         "decorations": false,
+        "visible": false,
         "skipTaskbar": false
       }
     ],

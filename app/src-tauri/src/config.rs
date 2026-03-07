@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use crate::shortcut::{format_shortcut, try_parse_shortcut, MOD_ALT, MOD_NOREPEAT, MOD_WIN};
 
 /// Runtime hotkey binding (action + modifiers + vk).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HotkeyBinding {
     pub action: String,
     pub modifiers: u32,
@@ -222,6 +222,12 @@ pub fn load() -> Config {
         Err(_) => return default_config,
     };
 
+    config_from_persisted(p, default_config)
+}
+
+fn config_from_persisted(p: PersistedConfig, default_config: Config) -> Config {
+    let default_hotkeys = default_config.hotkeys.clone();
+
     let thirds_layout = if p.thirds_layout.eq_ignore_ascii_case("Fifths") {
         "Fifths".into()
     } else if p.thirds_layout.eq_ignore_ascii_case("Fourths") {
@@ -263,7 +269,7 @@ pub fn load() -> Config {
     };
 
     let hotkeys = if hotkeys.is_empty() {
-        Config::default().hotkeys
+        default_hotkeys
     } else {
         hotkeys
     };
@@ -370,4 +376,185 @@ pub fn save(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string_pretty(&p)?;
     fs::write(path, json)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        config_from_frontend, config_from_persisted, Config, ConfigForFrontend, HotkeyForFrontend,
+        PersistedConfig, PersistedHotkey,
+    };
+    use crate::shortcut::{format_shortcut, MOD_ALT, MOD_NOREPEAT, MOD_WIN};
+
+    #[test]
+    fn default_config_contains_expected_basics() {
+        let config = Config::default();
+
+        assert!(config.launch_on_login);
+        assert_eq!(config.gap_size, -2.0);
+        assert_eq!(config.thirds_layout, "Thirds");
+        assert_eq!(config.hotkeys.len(), 18);
+        assert_eq!(config.hotkeys[0].action, "LeftHalf");
+        assert_eq!(config.hotkeys[0].modifiers, MOD_WIN | MOD_ALT | MOD_NOREPEAT);
+    }
+
+    #[test]
+    fn to_frontend_formats_hotkeys_for_ui() {
+        let config = Config::default();
+        let frontend = config.to_frontend();
+
+        assert_eq!(frontend.thirds_layout, "Thirds");
+        assert_eq!(frontend.hotkeys[0].action, "LeftHalf");
+        assert_eq!(frontend.hotkeys[0].shortcut, "Win+Alt+Left");
+    }
+
+    #[test]
+    fn config_from_frontend_normalizes_layout_and_restore_action() {
+        let frontend = ConfigForFrontend {
+            launch_on_login: false,
+            gap_size: 0.0,
+            screen_edge_gap_top: 1.0,
+            screen_edge_gap_bottom: 2.0,
+            screen_edge_gap_left: 3.0,
+            screen_edge_gap_right: 4.0,
+            screen_edge_gaps_on_main_screen_only: true,
+            taskbar_gap_compensation: 5,
+            taskbar_gap_compensation_left: 6,
+            taskbar_gap_compensation_right: 7,
+            apply_gaps_to_maximize: false,
+            apply_gaps_to_maximize_height: false,
+            thirds_layout: "fifths".into(),
+            hotkeys: vec![HotkeyForFrontend {
+                action: "Restore".into(),
+                shortcut: "Win+Alt+Left".into(),
+            }],
+        };
+
+        let config = config_from_frontend(frontend);
+        assert_eq!(config.thirds_layout, "Fifths");
+        assert_eq!(config.hotkeys.len(), 1);
+        assert_eq!(config.hotkeys[0].action, "Undo");
+        assert_eq!(config.hotkeys[0].virtual_key, 0x25);
+        assert_eq!(config.hotkeys[0].modifiers, MOD_WIN | MOD_ALT | MOD_NOREPEAT);
+        assert!(!config.launch_on_login);
+        assert!(!config.apply_gaps_to_maximize);
+    }
+
+    #[test]
+    fn config_from_frontend_falls_back_to_defaults_when_hotkeys_are_invalid() {
+        let frontend = ConfigForFrontend {
+            launch_on_login: true,
+            gap_size: 0.0,
+            screen_edge_gap_top: 0.0,
+            screen_edge_gap_bottom: 0.0,
+            screen_edge_gap_left: 0.0,
+            screen_edge_gap_right: 0.0,
+            screen_edge_gaps_on_main_screen_only: false,
+            taskbar_gap_compensation: 0,
+            taskbar_gap_compensation_left: 0,
+            taskbar_gap_compensation_right: 0,
+            apply_gaps_to_maximize: true,
+            apply_gaps_to_maximize_height: true,
+            thirds_layout: "invalid".into(),
+            hotkeys: vec![HotkeyForFrontend {
+                action: "".into(),
+                shortcut: "not-a-shortcut".into(),
+            }],
+        };
+
+        let config = config_from_frontend(frontend);
+        assert_eq!(config.thirds_layout, "Thirds");
+        assert_eq!(config.hotkeys, Config::default().hotkeys);
+    }
+
+    #[test]
+    fn config_from_persisted_normalizes_layout_restore_and_shortcuts() {
+        let persisted = PersistedConfig {
+            launch_on_login: true,
+            gap_size: 0.0,
+            screen_edge_gap_top: 0.0,
+            screen_edge_gap_bottom: 0.0,
+            screen_edge_gap_left: 0.0,
+            screen_edge_gap_right: 0.0,
+            screen_edge_gaps_on_main_screen_only: false,
+            taskbar_gap_compensation: 0,
+            taskbar_gap_compensation_left: 0,
+            taskbar_gap_compensation_right: 0,
+            apply_gaps_to_maximize: true,
+            apply_gaps_to_maximize_height: true,
+            thirds_layout: "fourths".into(),
+            hotkeys: vec![PersistedHotkey {
+                action: "Restore".into(),
+                shortcut: Some("Win+Alt+Right".into()),
+                modifiers: None,
+                virtual_key: None,
+            }],
+        };
+
+        let config = config_from_persisted(persisted, Config::default());
+        assert_eq!(config.thirds_layout, "Fourths");
+        assert_eq!(config.hotkeys.len(), 1);
+        assert_eq!(config.hotkeys[0].action, "Undo");
+        assert_eq!(config.hotkeys[0].virtual_key, 0x27);
+    }
+
+    #[test]
+    fn config_from_persisted_supports_legacy_modifier_and_vk_fields() {
+        let persisted = PersistedConfig {
+            launch_on_login: true,
+            gap_size: 0.0,
+            screen_edge_gap_top: 0.0,
+            screen_edge_gap_bottom: 0.0,
+            screen_edge_gap_left: 0.0,
+            screen_edge_gap_right: 0.0,
+            screen_edge_gaps_on_main_screen_only: false,
+            taskbar_gap_compensation: 0,
+            taskbar_gap_compensation_left: 0,
+            taskbar_gap_compensation_right: 0,
+            apply_gaps_to_maximize: true,
+            apply_gaps_to_maximize_height: true,
+            thirds_layout: "invalid".into(),
+            hotkeys: vec![PersistedHotkey {
+                action: "LeftHalf".into(),
+                shortcut: None,
+                modifiers: Some(MOD_WIN | MOD_ALT),
+                virtual_key: Some(0x25),
+            }],
+        };
+
+        let config = config_from_persisted(persisted, Config::default());
+        assert_eq!(config.thirds_layout, "Thirds");
+        assert_eq!(config.hotkeys.len(), 1);
+        assert_eq!(config.hotkeys[0].modifiers, MOD_WIN | MOD_ALT | MOD_NOREPEAT);
+        assert_eq!(format_shortcut(config.hotkeys[0].modifiers, config.hotkeys[0].virtual_key), "Win+Alt+Left");
+    }
+
+    #[test]
+    fn config_from_persisted_falls_back_to_defaults_when_all_hotkeys_are_invalid() {
+        let persisted = PersistedConfig {
+            launch_on_login: true,
+            gap_size: 0.0,
+            screen_edge_gap_top: 0.0,
+            screen_edge_gap_bottom: 0.0,
+            screen_edge_gap_left: 0.0,
+            screen_edge_gap_right: 0.0,
+            screen_edge_gaps_on_main_screen_only: false,
+            taskbar_gap_compensation: 0,
+            taskbar_gap_compensation_left: 0,
+            taskbar_gap_compensation_right: 0,
+            apply_gaps_to_maximize: true,
+            apply_gaps_to_maximize_height: true,
+            thirds_layout: "Thirds".into(),
+            hotkeys: vec![PersistedHotkey {
+                action: "".into(),
+                shortcut: Some("bad-shortcut".into()),
+                modifiers: None,
+                virtual_key: None,
+            }],
+        };
+
+        let defaults = Config::default();
+        let config = config_from_persisted(persisted, defaults.clone());
+        assert_eq!(config.hotkeys, defaults.hotkeys);
+    }
 }

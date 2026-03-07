@@ -2,6 +2,15 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import appIconUrl from "../src-tauri/icons/Icon.svg?url";
+import {
+  SECTIONS,
+  SectionLayoutKind,
+  getSectionLayoutLinePositions,
+  getShortcutFromKeypress,
+  getShortcutTileGridSpec,
+  normalizeSectionLayoutKind,
+  thirdsSectionActionLabel,
+} from "./app-helpers";
 import "./App.css";
 
 interface HotkeyForFrontend {
@@ -26,51 +35,13 @@ interface ConfigForFrontend {
   hotkeys: HotkeyForFrontend[];
 }
 
-/** Section actions: Left, Left two, Center, Right two, Right. Same 5 for Thirds/Fourths/Fifths. */
-const SECTION_ACTIONS = [
-  "FirstThird",
-  "FirstTwoThirds",
-  "CenterThird",
-  "LastTwoThirds",
-  "LastThird",
-] as const;
-
-const SECTIONS: { title: string; actions: readonly string[] }[] = [
-  { title: "Halves", actions: ["LeftHalf", "RightHalf", "TopHalf", "BottomHalf"] },
-  { title: "Quarters", actions: ["UpperLeft", "UpperRight", "LowerLeft", "LowerRight"] },
-  { title: "Thirds", actions: SECTION_ACTIONS },
-  { title: "Other", actions: ["Maximize", "Center", "Undo", "NextDisplay", "PreviousDisplay"] },
-];
-
-/** Section layout: Thirds 1|1|1, Fourths 1|2|1, Fifths 1|3|1. */
-type SectionLayoutKind = "Thirds" | "Fourths" | "Fifths";
-
-/** Labels for the 5 section options. */
-function thirdsSectionActionLabel(action: string): string {
-  const labels: Record<string, string> = {
-    FirstThird: "Left",
-    FirstTwoThirds: "Left two",
-    CenterThird: "Center",
-    LastTwoThirds: "Right two",
-    LastThird: "Right",
-  };
-  return labels[action] ?? action;
-}
-
 /** Icon showing section borders as outline only: Thirds 1|1|1, Fourths 1|2|1, Fifths 1|3|1. */
 function SectionLayoutIcon({ kind, size = 20 }: { kind: SectionLayoutKind; size?: number }) {
   const stroke = 1.2;
   const pad = 2;
   const w = size - pad * 2;
   const h = size - pad * 2;
-  let vLines: number[] = [];
-  if (kind === "Thirds") {
-    vLines = [w / 3, (2 * w) / 3];
-  } else if (kind === "Fourths") {
-    vLines = [w / 4, (3 * w) / 4];
-  } else {
-    vLines = [w / 5, (4 * w) / 5];
-  }
+  const vLines = getSectionLayoutLinePositions(kind, w);
   return (
     <span aria-hidden style={{ display: "inline-block", width: size, height: size }}>
       <svg
@@ -91,28 +62,15 @@ function SectionLayoutIcon({ kind, size = 20 }: { kind: SectionLayoutKind; size?
   );
 }
 
-/** Map key from KeyboardEvent to our shortcut label (e.g. ArrowLeft -> Left). */
-function keyToShortcutLabel(key: string): string {
-  const map: Record<string, string> = {
-    ArrowLeft: "Left",
-    ArrowRight: "Right",
-    ArrowUp: "Up",
-    ArrowDown: "Down",
-    Enter: "Enter",
-    Delete: "Delete",
-  };
-  return map[key] ?? key;
-}
-
 /** Build shortcut string from a keydown event (e.g. "Win+Alt+Left"). */
 function getShortcutFromEvent(e: KeyboardEvent): string {
-  const parts: string[] = [];
-  if (e.metaKey) parts.push("Win");
-  if (e.altKey) parts.push("Alt");
-  if (e.ctrlKey) parts.push("Ctrl");
-  if (e.shiftKey) parts.push("Shift");
-  parts.push(keyToShortcutLabel(e.key));
-  return parts.join("+");
+  return getShortcutFromKeypress({
+    key: e.key,
+    metaKey: e.metaKey,
+    altKey: e.altKey,
+    ctrlKey: e.ctrlKey,
+    shiftKey: e.shiftKey,
+  });
 }
 
 function SaveIcon() {
@@ -194,30 +152,7 @@ function ShortcutTileIcon({
       </span>
     );
   }
-  type GridSpec = { templateColumns: string; templateRows: string; col: number; row: number; colSpan?: number; rowSpan?: number };
-  const layout = sectionLayout ?? "Thirds";
-  const sectionCols =
-    layout === "Fifths" ? "1fr 3fr 1fr" : layout === "Fourths" ? "1fr 2fr 1fr" : "1fr 1fr 1fr";
-  const specs: Record<string, GridSpec> = {
-    LeftHalf: { templateColumns: "1fr 1fr", templateRows: "1fr", col: 1, row: 1 },
-    RightHalf: { templateColumns: "1fr 1fr", templateRows: "1fr", col: 2, row: 1 },
-    TopHalf: { templateColumns: "1fr", templateRows: "1fr 1fr", col: 1, row: 1 },
-    BottomHalf: { templateColumns: "1fr", templateRows: "1fr 1fr", col: 1, row: 2 },
-    UpperLeft: { templateColumns: "1fr 1fr", templateRows: "1fr 1fr", col: 1, row: 1 },
-    UpperRight: { templateColumns: "1fr 1fr", templateRows: "1fr 1fr", col: 2, row: 1 },
-    LowerLeft: { templateColumns: "1fr 1fr", templateRows: "1fr 1fr", col: 1, row: 2 },
-    LowerRight: { templateColumns: "1fr 1fr", templateRows: "1fr 1fr", col: 2, row: 2 },
-    FirstThird: { templateColumns: sectionCols, templateRows: "1fr", col: 1, row: 1, colSpan: 1 },
-    FirstTwoThirds: { templateColumns: sectionCols, templateRows: "1fr", col: 1, row: 1, colSpan: 2 },
-    CenterThird: { templateColumns: sectionCols, templateRows: "1fr", col: 2, row: 1, colSpan: 1 },
-    LastTwoThirds: { templateColumns: sectionCols, templateRows: "1fr", col: 2, row: 1, colSpan: 2 },
-    LastThird: { templateColumns: sectionCols, templateRows: "1fr", col: 3, row: 1, colSpan: 1 },
-    Maximize: { templateColumns: "1fr", templateRows: "1fr", col: 1, row: 1 },
-    Center: { templateColumns: "1fr 1fr 1fr", templateRows: "1fr 1fr 1fr", col: 2, row: 2, colSpan: 1, rowSpan: 1 },
-    NextDisplay: { templateColumns: "1fr 1fr", templateRows: "1fr", col: 2, row: 1 },
-    PreviousDisplay: { templateColumns: "1fr 1fr", templateRows: "1fr", col: 1, row: 1 },
-  };
-  const spec = specs[action];
+  const spec = getShortcutTileGridSpec(action, sectionLayout ?? "Thirds");
   if (!spec) return null;
   const { templateColumns, templateRows, col, row, colSpan = 1, rowSpan = 1 } = spec;
   return (
@@ -609,23 +544,8 @@ function App() {
                     aria-label="Section layout (thirds, fourths, fifths)"
                   >
                     <span className="section-dropdown-trigger-content">
-                      <SectionLayoutIcon
-                        kind={
-                          config?.thirdsLayout === "Fifths"
-                            ? "Fifths"
-                            : config?.thirdsLayout === "Fourths"
-                              ? "Fourths"
-                              : "Thirds"
-                        }
-                        size={18}
-                      />
-                      <span>
-                        {config?.thirdsLayout === "Fifths"
-                          ? "Fifths"
-                          : config?.thirdsLayout === "Fourths"
-                            ? "Fourths"
-                            : "Thirds"}
-                      </span>
+                      <SectionLayoutIcon kind={normalizeSectionLayoutKind(config?.thirdsLayout)} size={18} />
+                      <span>{normalizeSectionLayoutKind(config?.thirdsLayout)}</span>
                     </span>
                     <span className={`section-dropdown-chevron ${thirdsDropdownOpen ? "open" : ""}`}>
                       <ChevronDownIcon />
@@ -677,11 +597,7 @@ function App() {
                     section.title === "Thirds" ? thirdsSectionActionLabel(action) : action;
                   const layoutKind: SectionLayoutKind | undefined =
                     section.title === "Thirds"
-                      ? (config?.thirdsLayout === "Fifths"
-                          ? "Fifths"
-                          : config?.thirdsLayout === "Fourths"
-                            ? "Fourths"
-                            : "Thirds")
+                      ? normalizeSectionLayoutKind(config?.thirdsLayout)
                       : undefined;
                   return (
                     <li key={action} className="shortcut-row">

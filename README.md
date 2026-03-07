@@ -13,8 +13,136 @@ RectangleWin is a minimal tray app (Rust + Tauri): global hotkeys (Win+Alt by de
 ## Requirements
 
 - Windows 10/11
-- [Rust](https://rustup.rs/) toolchain
+- [Rust](https://rustup.rs/) toolchain (use the default `x86_64-pc-windows-msvc` target)
 - [Node.js](https://nodejs.org/) (and npm or pnpm) for the frontend
+- **Visual Studio Build Tools 2022** (recommended) or Visual Studio with the **“Desktop development with C++”** workload. The Rust MSVC target needs:
+  - MSVC x64/x86 build tools
+  - Windows 10/11 SDK
+  - a working Developer shell environment
+
+## Environment setup
+
+The most reliable local setup on Windows is to use the VS 2022 Build Tools developer shell. This repo includes a helper that finds a usable installation and loads the right `PATH`, `INCLUDE`, and `LIB` values for the current PowerShell session.
+
+From the repo root:
+
+```powershell
+. .\scripts\enter-vsdevshell.ps1
+cd app\src-tauri
+cargo test
+```
+
+If that script cannot find a usable toolchain, install or repair:
+
+- Visual Studio Build Tools 2022
+- Desktop development with C++
+- MSVC v143 x64/x86 build tools
+- Windows 10/11 SDK
+
+### Making sure build tools are in PATH
+
+The build uses the MSVC toolchain (`cl.exe`, Windows headers). Those are only available in a **Developer** environment. Use either:
+
+1. **Start menu** → open **“x64 Native Tools Command Prompt for VS 2022”** (or your VS version), then run the build commands in that terminal, or  
+2. **In a normal terminal**, run the VS dev script first, then build:
+   ```powershell
+   . .\scripts\enter-vsdevshell.ps1
+   cd app
+   npm run tauri build
+   ```
+   If VS is in a non-default path, pass `-PreferredInstallPath` to the helper script or use the “Developer PowerShell for VS” shortcut.
+
+## Validation
+
+Run both the frontend and backend checks:
+
+```powershell
+pwsh -File .\scripts\check.ps1
+```
+
+Run the fast local variant used by `pre-commit`:
+
+```powershell
+pwsh -File .\scripts\check.ps1 -Mode fast
+```
+
+Run them separately:
+
+```powershell
+pwsh -File .\scripts\check.ps1 -Frontend
+pwsh -File .\scripts\check.ps1 -Backend
+```
+
+Frontend unit tests:
+
+```powershell
+cd app
+npm run test
+```
+
+## Coverage
+
+Backend coverage uses `cargo-llvm-cov` and the same VS developer-shell bootstrap as the test workflow.
+
+One-time prerequisites:
+
+```powershell
+rustup component add llvm-tools-preview
+cargo install cargo-llvm-cov
+```
+
+Or let the helper install them:
+
+```powershell
+pwsh -File .\scripts\coverage.ps1 -InstallPrereqs
+```
+
+Generate an HTML report:
+
+```powershell
+pwsh -File .\scripts\coverage.ps1
+```
+
+The report is written to `app/src-tauri/target/llvm-cov-html/html/index.html`.
+
+Generate LCOV output instead:
+
+```powershell
+pwsh -File .\scripts\coverage.ps1 -Lcov
+```
+
+The LCOV file is written to `app/src-tauri/target/llvm-cov.info`.
+
+Frontend coverage:
+
+```powershell
+cd app
+npm run coverage
+```
+
+The frontend HTML report is written to `app/coverage/index.html`.
+
+## Git hooks
+
+Install the repo-local pre-commit hook:
+
+```powershell
+pwsh -File .\scripts\install-git-hooks.ps1
+```
+
+Installed hooks:
+
+- `pre-commit`
+- `pre-push`
+
+Hook behavior:
+
+- `pre-commit` runs targeted fast checks based on staged files
+- frontend changes under `app/` trigger `npm run typecheck` and `npm run test`
+- Rust changes under `app/src-tauri/` trigger `cargo test`
+- docs-only changes skip app checks
+- `pre-push` runs the full validation suite via `pwsh -File .\scripts\check.ps1`
+- coverage is not run from hooks; run it explicitly when needed
 
 ## Build & run
 
