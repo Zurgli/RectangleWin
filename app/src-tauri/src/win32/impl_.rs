@@ -2,7 +2,10 @@
 
 use crate::rect::Rect;
 use windows::Win32::Foundation::{CloseHandle, BOOL, HWND, LPARAM, POINT, RECT as WinRect};
-use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+use windows::Win32::Graphics::Dwm::{
+    DwmGetWindowAttribute, DwmSetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS,
+    DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND, DWM_WINDOW_CORNER_PREFERENCE,
+};
 use windows::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, GetMonitorInfoW, MonitorFromPoint, MonitorFromWindow, HMONITOR,
     MONITORINFOEXW, MONITOR_DEFAULTTONEAREST,
@@ -131,6 +134,45 @@ pub fn try_get_window_bounds(hwnd: HWND, use_window_rect: bool) -> Option<Rect> 
         }
         None
     }
+}
+
+pub fn get_window_corner_preference(hwnd: HWND) -> Option<DWM_WINDOW_CORNER_PREFERENCE> {
+    unsafe {
+        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() {
+            return None;
+        }
+
+        let mut preference = DWM_WINDOW_CORNER_PREFERENCE(0);
+        DwmGetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &mut preference as *mut _ as *mut _,
+            std::mem::size_of::<DWM_WINDOW_CORNER_PREFERENCE>() as u32,
+        )
+        .ok()?;
+
+        Some(preference)
+    }
+}
+
+pub fn set_window_corner_preference(hwnd: HWND, preference: DWM_WINDOW_CORNER_PREFERENCE) -> bool {
+    unsafe {
+        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() {
+            return false;
+        }
+
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &preference as *const _ as *const _,
+            std::mem::size_of::<DWM_WINDOW_CORNER_PREFERENCE>() as u32,
+        )
+        .is_ok()
+    }
+}
+
+pub fn remove_rounded_corners(hwnd: HWND) -> bool {
+    set_window_corner_preference(hwnd, DWMWCP_DONOTROUND)
 }
 
 /// Set window position and size. When rect_is_visible_bounds, convert visible rect to window rect using DWM frame offset.

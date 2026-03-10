@@ -21,6 +21,8 @@ pub struct HotkeyBinding {
 pub struct PersistedConfig {
     #[serde(default = "default_launch_on_login")]
     pub launch_on_login: bool,
+    #[serde(default = "default_true")]
+    pub remove_rounded_corners_on_snap: bool,
     #[serde(default)]
     pub gap_size: f32,
     #[serde(default)]
@@ -74,6 +76,7 @@ pub struct PersistedHotkey {
 #[derive(Clone, Debug)]
 pub struct Config {
     pub launch_on_login: bool,
+    pub remove_rounded_corners_on_snap: bool,
     pub gap_size: f32,
     pub screen_edge_gap_top: f32,
     pub screen_edge_gap_bottom: f32,
@@ -94,6 +97,7 @@ pub struct Config {
 #[serde(rename_all = "camelCase")]
 pub struct ConfigForFrontend {
     pub launch_on_login: bool,
+    pub remove_rounded_corners_on_snap: bool,
     pub gap_size: f32,
     pub screen_edge_gap_top: f32,
     pub screen_edge_gap_bottom: f32,
@@ -120,6 +124,7 @@ impl Config {
     pub fn to_frontend(&self) -> ConfigForFrontend {
         ConfigForFrontend {
             launch_on_login: self.launch_on_login,
+            remove_rounded_corners_on_snap: self.remove_rounded_corners_on_snap,
             gap_size: self.gap_size,
             screen_edge_gap_top: self.screen_edge_gap_top,
             screen_edge_gap_bottom: self.screen_edge_gap_bottom,
@@ -184,7 +189,8 @@ impl Config {
 
         Self {
             launch_on_login: true,
-            gap_size: -2.0,
+            remove_rounded_corners_on_snap: true,
+            gap_size: -1.0,
             screen_edge_gap_top: 0.0,
             screen_edge_gap_bottom: 0.0,
             screen_edge_gap_left: 0.0,
@@ -276,6 +282,7 @@ fn config_from_persisted(p: PersistedConfig, default_config: Config) -> Config {
 
     Config {
         launch_on_login: p.launch_on_login,
+        remove_rounded_corners_on_snap: p.remove_rounded_corners_on_snap,
         gap_size: p.gap_size,
         screen_edge_gap_top: p.screen_edge_gap_top,
         screen_edge_gap_bottom: p.screen_edge_gap_bottom,
@@ -320,6 +327,7 @@ pub fn config_from_frontend(p: ConfigForFrontend) -> Config {
     };
     Config {
         launch_on_login: p.launch_on_login,
+        remove_rounded_corners_on_snap: p.remove_rounded_corners_on_snap,
         gap_size: p.gap_size,
         screen_edge_gap_top: p.screen_edge_gap_top,
         screen_edge_gap_bottom: p.screen_edge_gap_bottom,
@@ -346,6 +354,7 @@ pub fn save(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
     let path = config_path();
     let p = PersistedConfig {
         launch_on_login: config.launch_on_login,
+        remove_rounded_corners_on_snap: config.remove_rounded_corners_on_snap,
         gap_size: config.gap_size,
         screen_edge_gap_top: config.screen_edge_gap_top,
         screen_edge_gap_bottom: config.screen_edge_gap_bottom,
@@ -391,11 +400,15 @@ mod tests {
         let config = Config::default();
 
         assert!(config.launch_on_login);
-        assert_eq!(config.gap_size, -2.0);
+        assert!(config.remove_rounded_corners_on_snap);
+        assert_eq!(config.gap_size, -1.0);
         assert_eq!(config.thirds_layout, "Thirds");
         assert_eq!(config.hotkeys.len(), 18);
         assert_eq!(config.hotkeys[0].action, "LeftHalf");
-        assert_eq!(config.hotkeys[0].modifiers, MOD_WIN | MOD_ALT | MOD_NOREPEAT);
+        assert_eq!(
+            config.hotkeys[0].modifiers,
+            MOD_WIN | MOD_ALT | MOD_NOREPEAT
+        );
     }
 
     #[test]
@@ -404,6 +417,7 @@ mod tests {
         let frontend = config.to_frontend();
 
         assert_eq!(frontend.thirds_layout, "Thirds");
+        assert!(frontend.remove_rounded_corners_on_snap);
         assert_eq!(frontend.hotkeys[0].action, "LeftHalf");
         assert_eq!(frontend.hotkeys[0].shortcut, "Win+Alt+Left");
     }
@@ -412,6 +426,7 @@ mod tests {
     fn config_from_frontend_normalizes_layout_and_restore_action() {
         let frontend = ConfigForFrontend {
             launch_on_login: false,
+            remove_rounded_corners_on_snap: false,
             gap_size: 0.0,
             screen_edge_gap_top: 1.0,
             screen_edge_gap_bottom: 2.0,
@@ -435,8 +450,12 @@ mod tests {
         assert_eq!(config.hotkeys.len(), 1);
         assert_eq!(config.hotkeys[0].action, "Undo");
         assert_eq!(config.hotkeys[0].virtual_key, 0x25);
-        assert_eq!(config.hotkeys[0].modifiers, MOD_WIN | MOD_ALT | MOD_NOREPEAT);
+        assert_eq!(
+            config.hotkeys[0].modifiers,
+            MOD_WIN | MOD_ALT | MOD_NOREPEAT
+        );
         assert!(!config.launch_on_login);
+        assert!(!config.remove_rounded_corners_on_snap);
         assert!(!config.apply_gaps_to_maximize);
     }
 
@@ -444,6 +463,7 @@ mod tests {
     fn config_from_frontend_falls_back_to_defaults_when_hotkeys_are_invalid() {
         let frontend = ConfigForFrontend {
             launch_on_login: true,
+            remove_rounded_corners_on_snap: true,
             gap_size: 0.0,
             screen_edge_gap_top: 0.0,
             screen_edge_gap_bottom: 0.0,
@@ -471,6 +491,7 @@ mod tests {
     fn config_from_persisted_normalizes_layout_restore_and_shortcuts() {
         let persisted = PersistedConfig {
             launch_on_login: true,
+            remove_rounded_corners_on_snap: false,
             gap_size: 0.0,
             screen_edge_gap_top: 0.0,
             screen_edge_gap_bottom: 0.0,
@@ -493,6 +514,7 @@ mod tests {
 
         let config = config_from_persisted(persisted, Config::default());
         assert_eq!(config.thirds_layout, "Fourths");
+        assert!(!config.remove_rounded_corners_on_snap);
         assert_eq!(config.hotkeys.len(), 1);
         assert_eq!(config.hotkeys[0].action, "Undo");
         assert_eq!(config.hotkeys[0].virtual_key, 0x27);
@@ -502,6 +524,7 @@ mod tests {
     fn config_from_persisted_supports_legacy_modifier_and_vk_fields() {
         let persisted = PersistedConfig {
             launch_on_login: true,
+            remove_rounded_corners_on_snap: true,
             gap_size: 0.0,
             screen_edge_gap_top: 0.0,
             screen_edge_gap_bottom: 0.0,
@@ -525,14 +548,21 @@ mod tests {
         let config = config_from_persisted(persisted, Config::default());
         assert_eq!(config.thirds_layout, "Thirds");
         assert_eq!(config.hotkeys.len(), 1);
-        assert_eq!(config.hotkeys[0].modifiers, MOD_WIN | MOD_ALT | MOD_NOREPEAT);
-        assert_eq!(format_shortcut(config.hotkeys[0].modifiers, config.hotkeys[0].virtual_key), "Win+Alt+Left");
+        assert_eq!(
+            config.hotkeys[0].modifiers,
+            MOD_WIN | MOD_ALT | MOD_NOREPEAT
+        );
+        assert_eq!(
+            format_shortcut(config.hotkeys[0].modifiers, config.hotkeys[0].virtual_key),
+            "Win+Alt+Left"
+        );
     }
 
     #[test]
     fn config_from_persisted_falls_back_to_defaults_when_all_hotkeys_are_invalid() {
         let persisted = PersistedConfig {
             launch_on_login: true,
+            remove_rounded_corners_on_snap: true,
             gap_size: 0.0,
             screen_edge_gap_top: 0.0,
             screen_edge_gap_bottom: 0.0,
