@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3 - 2026-03-10
+
+- Added a default-on setting to remove rounded corners while windows are snapped, matching the PowerToys approach of restoring the original corner preference when the window is unsnapped.
+- Changed the default window gap from `-2` px to `-1` px.
+
 ## 0.2.2 - 2026-03-07
 
 - Fixed shell hook handling so Start menu and other shell UI are no longer affected by stale snap state or invalid foreground targets.

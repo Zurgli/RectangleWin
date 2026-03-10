@@ -20,6 +20,7 @@ interface HotkeyForFrontend {
 
 interface ConfigForFrontend {
   launchOnLogin: boolean;
+  removeRoundedCornersOnSnap: boolean;
   gapSize: number;
   screenEdgeGapTop: number;
   screenEdgeGapBottom: number;
@@ -212,6 +213,7 @@ function App() {
     config != null &&
     savedConfig != null &&
     (config.launchOnLogin !== savedConfig.launchOnLogin ||
+      config.removeRoundedCornersOnSnap !== savedConfig.removeRoundedCornersOnSnap ||
       config.gapSize !== savedConfig.gapSize);
 
   async function loadConfig() {
@@ -490,6 +492,21 @@ function App() {
               checked={config?.launchOnLogin ?? true}
               onChange={(e) =>
                 setConfig((c) => (c ? { ...c, launchOnLogin: e.target.checked } : null))
+              }
+            />
+            <span className="switch-slider" />
+          </label>
+        </div>
+        <div className="setting-row">
+          <span>Remove rounded corners when snapped</span>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={config?.removeRoundedCornersOnSnap ?? true}
+              onChange={(e) =>
+                setConfig((c) =>
+                  c ? { ...c, removeRoundedCornersOnSnap: e.target.checked } : null
+                )
               }
             />
             <span className="switch-slider" />

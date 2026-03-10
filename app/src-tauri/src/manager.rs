@@ -10,13 +10,16 @@ use crate::rect::{EngineRect, Rect};
 #[cfg(windows)]
 use crate::win32::{
     enum_monitors, get_cursor_pos, get_foreground_window, get_monitor_from_point,
-    get_monitor_from_window, get_process_image_name, resolve_snap_target_window, set_cursor_pos,
-    set_foreground_window, set_window_bounds, try_get_monitor_info, try_get_window_bounds,
+    get_monitor_from_window, get_process_image_name, get_window_corner_preference,
+    remove_rounded_corners, resolve_snap_target_window, set_cursor_pos, set_foreground_window,
+    set_window_bounds, set_window_corner_preference, try_get_monitor_info, try_get_window_bounds,
 };
 #[cfg(windows)]
 use std::collections::HashMap;
 #[cfg(windows)]
 use std::time::{Duration, Instant};
+#[cfg(windows)]
+use windows::Win32::Graphics::Dwm::DWM_WINDOW_CORNER_PREFERENCE;
 
 /// Options for Execute (from config).
 #[derive(Clone, Debug)]
@@ -24,6 +27,7 @@ pub struct ExecuteOptions {
     pub use_cursor_screen: bool,
     pub move_cursor_after_snap: bool,
     pub move_cursor_across_displays: bool,
+    pub remove_rounded_corners_on_snap: bool,
     pub gap_size: f32,
     pub update_restore_rect: bool,
     pub disabled_process_names: Option<Vec<String>>,
@@ -46,6 +50,7 @@ impl Default for ExecuteOptions {
             use_cursor_screen: false,
             move_cursor_after_snap: false,
             move_cursor_across_displays: false,
+            remove_rounded_corners_on_snap: true,
             gap_size: 0.0,
             update_restore_rect: true,
             disabled_process_names: None,
@@ -67,6 +72,7 @@ impl Default for ExecuteOptions {
 impl From<&Config> for ExecuteOptions {
     fn from(c: &Config) -> Self {
         Self {
+            remove_rounded_corners_on_snap: c.remove_rounded_corners_on_snap,
             gap_size: c.gap_size,
             screen_edge_gap_top: c.screen_edge_gap_top,
             screen_edge_gap_bottom: c.screen_edge_gap_bottom,
@@ -231,6 +237,7 @@ fn resolve_section_layout_mode(
 pub struct WindowManager {
     restore_rects: HashMap<isize, Rect>,
     last_actions: HashMap<isize, (WindowAction, Rect)>,
+    original_corner_preferences: HashMap<isize, DWM_WINDOW_CORNER_PREFERENCE>,
     section_cycle_session: Option<SectionCycleSession>,
 }
 
@@ -240,7 +247,25 @@ impl WindowManager {
         Self {
             restore_rects: HashMap::new(),
             last_actions: HashMap::new(),
+            original_corner_preferences: HashMap::new(),
             section_cycle_session: None,
+        }
+    }
+
+    fn apply_corner_preference(&mut self, hwnd: windows::Win32::Foundation::HWND, key: isize) {
+        self.original_corner_preferences
+            .entry(key)
+            .or_insert_with(|| get_window_corner_preference(hwnd).unwrap_or_default());
+        let _ = remove_rounded_corners(hwnd);
+    }
+
+    pub fn restore_corner_preference(
+        &mut self,
+        hwnd: windows::Win32::Foundation::HWND,
+        key: isize,
+    ) {
+        if let Some(preference) = self.original_corner_preferences.remove(&key) {
+            let _ = set_window_corner_preference(hwnd, preference);
         }
     }
 
@@ -263,6 +288,7 @@ impl WindowManager {
     pub fn clear_window_state(&mut self, key: isize) {
         self.restore_rects.remove(&key);
         self.last_actions.remove(&key);
+        self.original_corner_preferences.remove(&key);
         if self
             .section_cycle_session
             .map(|session| session.window_key == key)
@@ -309,6 +335,7 @@ impl WindowManager {
             };
             let ok = set_window_bounds(hwnd, &restore, false, false);
             if ok {
+                self.restore_corner_preference(hwnd, key);
                 self.last_actions.remove(&key);
             }
             return ok;
@@ -344,6 +371,11 @@ impl WindowManager {
             if ok {
                 self.last_actions
                     .insert(key, (WindowAction::Maximize, dest_rect));
+                if options.remove_rounded_corners_on_snap {
+                    self.apply_corner_preference(hwnd, key);
+                } else {
+                    self.restore_corner_preference(hwnd, key);
+                }
                 if options.move_cursor_across_displays {
                     set_cursor_pos(
                         dest_rect.left + dest_rect.width() / 2,
@@ -421,6 +453,11 @@ impl WindowManager {
         if applied {
             self.last_actions
                 .insert(key, (result.resulting_action, target));
+            if options.remove_rounded_corners_on_snap {
+                self.apply_corner_preference(hwnd, key);
+            } else {
+                self.restore_corner_preference(hwnd, key);
+            }
             if options.move_cursor_after_snap {
                 set_cursor_pos(
                     target.left + target.width() / 2,

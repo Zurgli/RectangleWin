@@ -67,19 +67,17 @@ unsafe extern "system" fn win_event_proc(
         if let Some(ref handle) = *guard {
             let h_for_call = handle.clone();
             let h_for_closure = handle.clone();
-            let _ = h_for_call.run_on_main_thread(move || {
-                match event {
-                    EVENT_SYSTEM_MOVESIZEEND => {
-                        let hwnd = HWND(hwnd_raw as *mut _);
-                        let root = GetAncestor(hwnd, GA_ROOT);
-                        if root.0.is_null() || !IsWindow(root).as_bool() {
-                            return;
-                        }
-                        on_move_size_end(h_for_closure, root.0 as usize);
+            let _ = h_for_call.run_on_main_thread(move || match event {
+                EVENT_SYSTEM_MOVESIZEEND => {
+                    let hwnd = HWND(hwnd_raw as *mut _);
+                    let root = GetAncestor(hwnd, GA_ROOT);
+                    if root.0.is_null() || !IsWindow(root).as_bool() {
+                        return;
                     }
-                    EVENT_OBJECT_DESTROY => on_window_destroy(h_for_closure, hwnd_raw),
-                    _ => {}
+                    on_move_size_end(h_for_closure, root.0 as usize);
                 }
+                EVENT_OBJECT_DESTROY => on_window_destroy(h_for_closure, hwnd_raw),
+                _ => {}
             });
         }
     }
@@ -130,10 +128,10 @@ fn on_move_size_end(handle: tauri::AppHandle, hwnd_raw: usize) {
     let _ = super::set_window_bounds(hwnd, &rect_to_apply, false, false);
     {
         let state = handle.state::<crate::AppState>();
-        let _ = state
-            .manager
-            .try_lock()
-            .map(|mut manager| manager.clear_window_state(key));
+        let _ = state.manager.try_lock().map(|mut manager| {
+            manager.restore_corner_preference(hwnd, key);
+            manager.clear_window_state(key);
+        });
     }
 }
 
