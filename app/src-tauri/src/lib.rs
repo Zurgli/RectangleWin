@@ -6,10 +6,14 @@ mod shortcut;
 #[cfg(windows)]
 mod win32;
 
-use std::str::FromStr;
-use config::{config_from_frontend, load as config_load, save as config_save, Config, ConfigForFrontend};
+use config::{
+    config_from_frontend, load as config_load, save as config_save, Config, ConfigForFrontend,
+};
 use manager::{ExecuteOptions, WindowManager};
+use std::str::FromStr;
 use std::sync::Mutex;
+#[cfg(windows)]
+use std::time::Duration;
 use tauri::Manager;
 
 pub struct AppState {
@@ -35,7 +39,10 @@ fn load_config(state: tauri::State<AppState>) -> Result<ConfigForFrontend, Strin
 }
 
 #[tauri::command]
-fn save_config(state: tauri::State<AppState>, payload: ConfigForFrontend) -> Result<ConfigForFrontend, String> {
+fn save_config(
+    state: tauri::State<AppState>,
+    payload: ConfigForFrontend,
+) -> Result<ConfigForFrontend, String> {
     let new_config = config_from_frontend(payload);
     config_save(&new_config).map_err(|e| e.to_string())?;
     {
@@ -113,8 +120,8 @@ fn register_hotkeys(app: &tauri::AppHandle, config: &Config) -> Result<(), Strin
     let handle = app.clone();
     let hotkeys = config.hotkeys.clone();
     // HWND is not Send; pass as usize and convert back on main thread
-    let trigger: Box<dyn Fn(String, Option<usize>) + Send> = Box::new(
-        move |action_name: String, hwnd_raw: Option<usize>| {
+    let trigger: Box<dyn Fn(String, Option<usize>) + Send> =
+        Box::new(move |action_name: String, hwnd_raw: Option<usize>| {
             let value = handle.clone();
             let _ = handle.run_on_main_thread(move || {
                 if let Some(action) = engine::WindowAction::from_str(&action_name) {
@@ -138,8 +145,7 @@ fn register_hotkeys(app: &tauri::AppHandle, config: &Config) -> Result<(), Strin
                         .unwrap_or(false);
                 }
             });
-        },
-    );
+        });
     let debug_app = std::env::var_os("RECTANGLEWIN_DEBUG_KEYS")
         .filter(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .map(|_| app.clone());
@@ -151,6 +157,48 @@ fn register_hotkeys(app: &tauri::AppHandle, config: &Config) -> Result<(), Strin
 fn register_hotkeys(_app: &tauri::AppHandle, _config: &Config) -> Result<(), String> {
     Ok(())
 }
+
+#[cfg(windows)]
+fn start_hotkey_watchdog(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        let mut consecutive_probe_failures = 0u8;
+
+        loop {
+            std::thread::sleep(Duration::from_secs(15));
+
+            if !win32::is_hotkey_hook_running() {
+                consecutive_probe_failures = 0;
+            } else if win32::probe_lowlevel_hook(Duration::from_millis(250)) {
+                consecutive_probe_failures = 0;
+                continue;
+            } else {
+                consecutive_probe_failures = consecutive_probe_failures.saturating_add(1);
+                if consecutive_probe_failures < 2 {
+                    continue;
+                }
+            }
+
+            let config = {
+                let state = app.state::<AppState>();
+                state.config.lock().ok().map(|config| config.clone())
+            };
+
+            if let Some(config) = config {
+                if !win32::stop_lowlevel_hook(Duration::from_secs(2))
+                    && win32::is_hotkey_hook_running()
+                {
+                    continue;
+                }
+                register_hotkeys(&app, &config).ok();
+            }
+
+            consecutive_probe_failures = 0;
+        }
+    });
+}
+
+#[cfg(not(windows))]
+fn start_hotkey_watchdog(_app: tauri::AppHandle) {}
 
 #[tauri::command]
 fn exit_app() {
@@ -169,13 +217,16 @@ fn open_config_in_editor() -> Result<(), String> {
 #[tauri::command]
 fn open_config_file_location() -> Result<(), String> {
     let path = config::config_path();
-    let dir = path.parent().ok_or_else(|| "No parent directory".to_string())?;
+    let dir = path
+        .parent()
+        .ok_or_else(|| "No parent directory".to_string())?;
     opener::open(dir).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn run_action(state: tauri::State<AppState>, action: String) -> Result<bool, String> {
-    let action = engine::WindowAction::from_str(&action).ok_or_else(|| "Unknown action".to_string())?;
+    let action =
+        engine::WindowAction::from_str(&action).ok_or_else(|| "Unknown action".to_string())?;
     let options = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
         ExecuteOptions::from(&*config)
@@ -204,13 +255,21 @@ pub fn run() {
             #[cfg(windows)]
             register_hotkeys(&app.handle(), &initial_config).ok();
             #[cfg(windows)]
+            start_hotkey_watchdog(app.handle().clone());
+            #[cfg(windows)]
             win32::start_move_size_end_hook(app.handle().clone());
 
             // Tray: single left-click shows window; right-click shows menu with Quit
             let handle = app.handle().clone();
             const TRAY_ICON: tauri::image::Image<'static> = tauri::include_image!("icons/icon.ico");
-            let quit_item = tauri::menu::MenuItem::with_id(&handle, "quit", "Quit RectangleWin", true, None::<&str>)
-                .expect("tray quit menu item");
+            let quit_item = tauri::menu::MenuItem::with_id(
+                &handle,
+                "quit",
+                "Quit RectangleWin",
+                true,
+                None::<&str>,
+            )
+            .expect("tray quit menu item");
             let menu = tauri::menu::Menu::with_items(&handle, &[&quit_item]).expect("tray menu");
             let h = handle.clone();
             let _ = tauri::tray::TrayIconBuilder::new()
