@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4 - 2026-03-31
+
+- Reworked the low-level keyboard hook to track modifier state from hook events instead of `GetAsyncKeyState` inside the callback.
+- Added an active hook watchdog probe and clean restart path so stale or silently detached hotkey hooks can recover without restarting the full app.
+
 ## 0.2.3 - 2026-03-10
 
 - Added a default-on setting to remove rounded corners while windows are snapped, matching the PowerToys approach of restoring the original corner preference when the window is unsnapped.
