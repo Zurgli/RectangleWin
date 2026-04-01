@@ -9,7 +9,10 @@ mod impl_;
 mod move_size_hook;
 
 #[cfg(windows)]
-pub use hotkey_hook::{set_hotkeys, start as start_lowlevel_hook};
+pub use hotkey_hook::{
+    is_running as is_hotkey_hook_running, probe as probe_lowlevel_hook, set_hotkeys,
+    start as start_lowlevel_hook, stop as stop_lowlevel_hook,
+};
 #[cfg(windows)]
 pub use impl_::*;
 #[cfg(windows)]
